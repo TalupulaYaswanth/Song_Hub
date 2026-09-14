@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Song to Text App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎵</text></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+  <!-- 3D God Look Background -->
+  <div class="background-objects">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="app-container">
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="glass"
+      style="display: flex; flex-direction: column; align-items: center; padding: 48px; max-width: 400px; width: 100%; text-align: center;">
+      <div style="margin-bottom: 32px;">
+        <h1 class="header-text">Wav2Text</h1>
+        <p class="sub-text">Experience the future of song transcription with real-time audio visualization and AI.</p>
+      </div>
+
+      <button id="login-btn" class="btn-glass">
+        <!-- SVG Icon for Google/Log In -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <polyline points="10 17 15 12 10 7" />
+          <line x1="15" x2="3" y1="12" y2="12" />
+        </svg>
+        Continue with Google
+      </button>
+
+      <button id="guest-login-btn" class="btn-glass" style="margin-top: 10px; font-size: 15px; padding: 12px 24px; background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        Instant Guest Access
+      </button>
+
+      <div class="login-divider">
+        <span>OR</span>
+      </div>
+
+      <!-- Email Login Form -->
+      <form id="email-login-form" class="auth-form">
+        <div class="input-group">
+          <input type="email" id="auth-email" placeholder="Email Address" required>
+        </div>
+        <div class="input-group">
+          <input type="password" id="auth-password" placeholder="Password" required>
+        </div>
+
+        <button type="submit" id="email-auth-btn" class="btn-primary-glow">
+          <span id="auth-btn-text">Sign In</span>
+        </button>
+
+        <p id="auth-toggle-text" class="auth-toggle">
+          Don't have an account? <span id="toggle-auth-mode">Sign Up</span>
+        </p>
+
+        <p id="auth-error" class="auth-error-text" style="display: none;"></p>
+      </form>
+
+      <div style="margin-top: 24px; font-size: 11px; color: var(--text-secondary); opacity: 0.6;">
+        By continuing, you agree to our Terms of Service and Privacy Policy.
+      </div>
+    </div>
+
+    <!-- Library Screen -->
+    <div id="library-screen" class="web-dashboard glass" style="display: none; padding: 32px;">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; position: relative;">
+        <!-- Left: Home Button -->
+        <div style="flex: 1; display: flex; align-items: center;">
+          <button id="home-library-btn" class="btn-glass"
+            style="padding: 8px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Center: Dashboard Branding -->
+        <div style="flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center;">
+          <h2 id="library-title" style="font-size: 24px; font-weight: 600; margin: 0;">Global Top Hits</h2>
+          <div id="connectivity-badge"
+            style="font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 4px; background: rgba(0, 255, 65, 0.1); color: #00ff41; border: 1px solid #00ff41; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">
+            Online Cloud</div>
+        </div>
+
+        <!-- Right: User Identity -->
+        <div style="display: flex; align-items: center; gap: 16px; flex: 1; justify-content: flex-end;">
+          <button id="admin-btn"
+            style="display: none; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--primary-glow); color: var(--primary-glow); cursor: pointer; padding: 5px 12px; border-radius: 20px; font-weight: 600; align-items: center; gap: 4px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0V12m0-4h.01" />
+            </svg>
+            Admin
+          </button>
+
+          <!-- Permanent Saved Playlist Button -->
+          <button id="main-saved-playlist-btn"
+            style="display: none; background: rgba(236, 72, 153, 0.1); border: 1px solid #ec4899; color: #ec4899; cursor: pointer; padding: 5px 12px; border-radius: 20px; font-weight: 600; align-items: center; gap: 6px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+              </path>
+            </svg>
+            My Playlist
+          </button>
+
+          <div id="user-profile-header" class="user-profile"
+            style="display: none; position: relative; cursor: pointer;">
+            <div id="user-avatar" class="avatar">U</div>
+            <span id="user-display-name" style="font-weight: 600; font-size: 14px;">User Name</span>
+
+            <!-- Command Panel Dropdown -->
+            <div id="profile-dropdown" class="profile-dropdown">
+              <div class="panel-header">
+                <div id="user-avatar-large" class="avatar"
+                  style="width: 64px; height: 64px; margin: 0 auto 12px; font-size: 24px;">U</div>
+                <h3 id="user-display-name-panel" style="margin-bottom: 4px; font-size: 18px;">User Name</h3>
+                <p id="user-email-panel" style="font-size: 12px; color: var(--text-secondary); opacity: 0.8;">
+                  user@gmail.com</p>
+              </div>
+
+              <div class="panel-grid">
+                <div class="panel-tile" id="menu-account">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span>Account</span>
+                </div>
+                <div class="panel-tile" id="menu-security">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span>Security</span>
+                </div>
+                <div class="panel-tile" id="menu-owner" style="display: none; color: #00f3ff;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                  </svg>
+                  <span>Master</span>
+                </div>
+                <div class="panel-tile" id="menu-logout" style="color: #ff4757;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" x2="9" y1="12" y2="12" />
+                  </svg>
+                  <span>Logout</span>
+                </div>
+              </div>
+
+              <!-- System Components (Moved from Header) -->
+              <div class="panel-systems">
+                <div class="system-item">
+                  <span class="system-label">Background</span>
+                  <select id="atmosphere-select" class="glass-select panel-select">
+                    <option value="nebula">Nebula</option>
+                    <option value="abyss">Deep Abyss</option>
+                    <option value="cyber">Cyber Dynamic</option>
+                  </select>
+                </div>
+
+                <div class="system-item">
+                  <span class="system-label">Region</span>
+                  <select id="language-select" class="glass-select panel-select">
+                    <option value="bollywood">Hindi</option>
+                    <option value="telugu">Telugu</option>
+                    <option value="tamil">Tamil</option>
+                    <option value="punjabi">Punjabi</option>
+                    <option value="malayalam">Malayalam</option>
+                    <option value="marathi">Marathi</option>
+                    <option value="english">English</option>
+                  </select>
+                </div>
+
+                <div class="system-item">
+                  <span class="system-label">Era / Year</span>
+                  <select id="year-select" class="glass-select panel-select">
+                    <option value="">All Time</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                    <option value="2010s">2010s</option>
+                    <option value="2000s">2000s</option>
+                    <option value="90s">90s Hits</option>
+                  </select>
+                </div>
+
+                <div class="system-item">
+                  <span class="system-label" style="color: #ec4899;">Offline God Mode</span>
+                  <input type="checkbox" id="offline-toggle"
+                    style="accent-color: #ec4899; transform: scale(1.3); cursor: pointer;">
+                </div>
+
+                <div class="system-item" id="history-btn" style="cursor: pointer;">
+                  <span class="system-label" style="display: flex; align-items: center; gap: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 8v4l3 3" />
+                      <circle cx="12" cy="12" r="9" />
+                    </svg>
+                    Transcription History
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+
+                <div class="system-item" id="saved-songs-btn"
+                  style="cursor: pointer; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05);">
+                  <span class="system-label" style="display: flex; align-items: center; gap: 8px; color: #ec4899;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path
+                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                      </path>
+                    </svg>
+                    My Saved Library
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button id="logout-btn"
+            style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" x2="9" y1="12" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="search-wrapper">
+        <div class="search-bar-container" id="search-bar">
+          <div class="search-icon" id="search-trigger">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+          <span id="search-filter-badge" class="search-filter-badge">LIBRARY</span>
+          <input type="text" id="global-search-input" class="search-input"
+            placeholder="Search for songs, artists, or albums...">
+          <button id="search-clear-btn" class="search-clear-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <div class="search-divider"></div>
+          <div class="search-mic-icon" title="Voice Search (Simulation)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" x2="12" y1="19" y2="22" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div id="loading-spinner" style="display: flex; justify-content: center; align-items: center; height: 200px;">
+        <p style="color: var(--primary-glow); font-size: 18px; font-weight: 600; font-style: italic;">Loading library
+          from API...</p>
+      </div>
+
+      <div id="song-grid" class="song-grid" style="display: none;">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- Main Web Dashboard Screen -->
+    <div id="phone-app" class="web-dashboard glass" style="display: none;">
+
+      <!-- Top Bar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+        <button id="back-library-btn"
+          style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          Library
+        </button>
+        <h2 style="font-size: 18px; font-weight: 600;">God Player</h2>
+        <div style="width: 20px;"></div>
+      </div>
+
+      <div class="main-content">
+        <!-- Upload Area -->
+        <div id="upload-zone" class="upload-zone">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="var(--primary-glow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style="margin-bottom: 12px;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" x2="12" y1="3" y2="15" />
+          </svg>
+          <p id="file-name" style="font-size: 14px; color: var(--text-secondary);">Tap to select a song (.mp3, .wav)</p>
+          <input type="file" id="audio-upload" accept="audio/*" style="display: none;" />
+        </div>
+
+        <!-- Audio Waveform Area -->
+        <div style="margin: 32px 0;">
+          <div id="waveform" style="width: 100%;"></div>
+
+          <div style="display: flex; justify-content: center; gap: 16px; margin-top: 24px;">
+            <button id="play-pause-btn" class="btn-glass"
+              style="width: 60px; height: 60px; border-radius: 50%; padding: 0;" disabled>
+              <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            </button>
+
+            <button id="transcribe-btn" class="btn-glass" style="flex: 1; padding: 0 24px;" disabled>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" x2="12" y1="19" y2="22" />
+              </svg>
+              <span id="transcribe-text">Transcribe</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Transcript Area -->
+        <div class="transcript-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="font-size: 14px; color: var(--primary-glow); margin: 0;">Transcription</h3>
+            <button id="download-txt-btn"
+              style="display: none; padding: 4px 12px; font-size: 12px; background: rgba(139, 92, 246, 0.2); color: var(--primary-glow); border: 1px solid var(--primary-glow); border-radius: 20px; cursor: pointer; transition: 0.2s;">
+              Download .txt
+            </button>
+          </div>
+          <p id="transcript-output">Upload a song and tap transcribe to see lyrics here.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div id="history-modal" class="modal-overlay">
+    <div class="modal-content glass">
+      <button id="close-history-btn" class="close-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+      <h2 class="header-text">Transcription History</h2>
+      <div id="history-list" style="margin-top: 24px;">
+        <!-- Filled by JS -->
+      </div>
+      <button id="clear-history-btn" class="clear-history-btn" style="display: none;">Clear All History</button>
+    </div>
+  </div>
+
+  <!-- Load Wavesurfer.js from CDN so you can double click the HTML file directly -->
+  <!-- Local Offline Wavesurfer -->
+  <script src="{{ url_for('static', filename='assets/js/wavesurfer.min.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
+
+
+<!-- 7FlllEDu2P1AsO7n -->

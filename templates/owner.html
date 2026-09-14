@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Command Center | God Mode</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎵</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='owner.css') }}">
+</head>
+<body>
+    <!-- Security Guard Intro -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-text">IDENTIFYING MASTER...</div>
+    </div>
+
+    <div class="command-container">
+        <header class="cyber-header">
+            <h1>Command Center</h1>
+            <p style="color: var(--text-secondary);">Logged in as Master Administrator</p>
+        </header>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <h3>System Users</h3>
+                <div id="total-users" class="value">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Global Transcriptions</h3>
+                <div id="total-transcriptions" class="value">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>System Status</h3>
+                <div class="value" style="color: var(--cmd-green);">ONLINE</div>
+            </div>
+        </div>
+
+        <section class="data-table-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="text-transform: uppercase; font-size: 18px; color: var(--cmd-cyan);">Cloud User Registry</h2>
+                <div style="display: flex; gap: 12px;">
+                    <button id="export-btn" class="btn-cmd">Master Export (JSON)</button>
+                    <a href="/" class="btn-cmd" style="text-decoration: none; display: inline-flex; align-items: center;">Return to Dashboard</a>
+                    <button id="logout-btn" class="btn-cmd danger">Terminate Session</button>
+                </div>
+            </div>
+
+            <table id="user-table">
+                <thead>
+                    <tr>
+                        <th>User Identity</th>
+                        <th>Email</th>
+                        <th>Last Active</th>
+                        <th>Status</th>
+                        <th>Control</th>
+                    </tr>
+                </thead>
+                <tbody id="user-registry-body">
+                    <!-- Filled by owner.js -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Global Activity Feed -->
+        <section class="data-table-container">
+            <h2 style="text-transform: uppercase; font-size: 18px; color: var(--cmd-cyan); margin-bottom: 20px;">Global Audio Activity</h2>
+            <div id="global-feed" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #888;">
+                <!-- Activity logs -->
+            </div>
+        </section>
+    </div>
+
+    <script type="module" src="{{ url_for('static', filename='owner.js') }}"></script>
+</body>
+</html>
