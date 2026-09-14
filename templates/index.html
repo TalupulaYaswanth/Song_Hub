@@ -357,27 +357,39 @@
         <div style="margin: 16px 0;">
           <div id="waveform" style="width: 100%;"></div>
 
-          <!-- Language Selector to ensure transcription matches song language -->
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px; margin-bottom: 8px; padding: 6px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px;">
+          <!-- Language & Speed Control Bar to match song speed -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px; margin-bottom: 8px; padding: 6px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; gap: 12px; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary-glow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
               <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Song Language:</span>
+              <select id="transcribe-language-select" class="glass-select" style="padding: 4px 10px; font-size: 13px; border-radius: 8px;">
+                <option value="auto">🌐 Auto-Detect Language</option>
+                <option value="hindi">🇮🇳 Hindi (हिन्दी)</option>
+                <option value="telugu">🇮🇳 Telugu (తెలుగు)</option>
+                <option value="tamil">🇮🇳 Tamil (தமிழ்)</option>
+                <option value="punjabi">🇮🇳 Punjabi (ਪੰਜਾਬੀ)</option>
+                <option value="malayalam">🇮🇳 Malayalam (മലയാളം)</option>
+                <option value="marathi">🇮🇳 Marathi (मराठी)</option>
+                <option value="bengali">🇮🇳 Bengali (বাংলা)</option>
+                <option value="english">🇬🇧 English</option>
+                <option value="spanish">🇪🇸 Spanish</option>
+                <option value="french">🇫🇷 French</option>
+                <option value="korean">🇰🇷 Korean</option>
+                <option value="japanese">🇯🇵 Japanese</option>
+              </select>
             </div>
-            <select id="transcribe-language-select" class="glass-select" style="padding: 4px 10px; font-size: 13px; border-radius: 8px;">
-              <option value="auto">🌐 Auto-Detect Language</option>
-              <option value="hindi">🇮🇳 Hindi (हिन्दी)</option>
-              <option value="telugu">🇮🇳 Telugu (తెలుగు)</option>
-              <option value="tamil">🇮🇳 Tamil (தமிழ்)</option>
-              <option value="punjabi">🇮🇳 Punjabi (ਪੰਜਾਬੀ)</option>
-              <option value="malayalam">🇮🇳 Malayalam (മലയാളം)</option>
-              <option value="marathi">🇮🇳 Marathi (मराठी)</option>
-              <option value="bengali">🇮🇳 Bengali (বাংলা)</option>
-              <option value="english">🇬🇧 English</option>
-              <option value="spanish">🇪🇸 Spanish</option>
-              <option value="french">🇫🇷 French</option>
-              <option value="korean">🇰🇷 Korean</option>
-              <option value="japanese">🇯🇵 Japanese</option>
-            </select>
+
+            <!-- Playback Speed Selector (Locks with lyrics synchronization) -->
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--secondary-glow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Speed:</span>
+              <select id="playback-speed-select" class="glass-select" style="padding: 4px 8px; font-size: 13px; border-radius: 8px;">
+                <option value="0.75">0.75x</option>
+                <option value="1.0" selected>1.0x Normal</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+              </select>
+            </div>
           </div>
 
           <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">

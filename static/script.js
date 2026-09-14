@@ -296,6 +296,25 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       });
+
+      wavesurfer.on('ready', () => {
+        const speedSelect = document.getElementById('playback-speed-select');
+        if (speedSelect && wavesurfer) {
+          const rate = parseFloat(speedSelect.value) || 1.0;
+          wavesurfer.setPlaybackRate(rate);
+        }
+      });
+
+      const speedSelect = document.getElementById('playback-speed-select');
+      if (speedSelect) {
+        speedSelect.onchange = () => {
+          const rate = parseFloat(speedSelect.value) || 1.0;
+          if (wavesurfer) {
+            wavesurfer.setPlaybackRate(rate);
+            console.log(`⏩ Adjusted audio playback speed to ${rate}x (karaoke synchronized)`);
+          }
+        };
+      }
     }
   };
 
@@ -1084,6 +1103,94 @@ document.addEventListener('DOMContentLoaded', () => {
     shuffleLibraryBtn.onclick = () => playRandomSong();
   }
 
+  // Playback Speed Controller
+  const playbackSpeedSelect = document.getElementById('playback-speed-select');
+  if (playbackSpeedSelect) {
+    playbackSpeedSelect.onchange = (e) => {
+      const rate = parseFloat(e.target.value) || 1.0;
+      if (wavesurfer) {
+        wavesurfer.setPlaybackRate(rate);
+        console.log(`⚡ Playback Rate set to ${rate}x`);
+      }
+    };
+  }
+
+  // Parse real synchronized LRC lyrics (millisecond timestamps) to match song tempo
+  const parseLRCtoCache = (lrcString, audioDuration) => {
+    const lines = lrcString.split('\n');
+    const parsed = [];
+    const timeRegex = /\[(\d{2}):(\d{2})\.?(\d{2,3})?\]/;
+
+    for (let line of lines) {
+      const match = timeRegex.exec(line);
+      if (match) {
+        const min = parseInt(match[1], 10);
+        const sec = parseInt(match[2], 10);
+        const ms = match[3] ? parseInt(match[3].padEnd(3, '0').substring(0, 3), 10) : 0;
+        const timeInSec = min * 60 + sec + (ms / 1000);
+        const text = line.replace(/\[\d{2}:\d{2}\.?\d*\]/g, '').trim();
+        if (text && !text.startsWith('ar:') && !text.startsWith('ti:') && !text.startsWith('al:') && !text.startsWith('by:')) {
+          parsed.push({ time: timeInSec, text });
+        }
+      }
+    }
+
+    if (parsed.length === 0) return null;
+
+    // Handle preview track offset if the preview starts later in the song
+    let offset = 0;
+    if (audioDuration && audioDuration <= 35 && parsed[0].time > 25) {
+      offset = parsed[0].time;
+    }
+
+    return parsed.map((item, idx) => {
+      const startTime = Math.max(0, item.time - offset);
+      const nextItem = parsed[idx + 1];
+      const endTime = nextItem ? Math.max(startTime + 0.8, nextItem.time - offset) : startTime + 3.5;
+      const duration = Math.max(0.6, endTime - startTime);
+
+      const words = item.text.split(/\s+/).filter(w => w.length > 0);
+      const wordDur = duration / Math.max(1, words.length);
+
+      return {
+        time: startTime,
+        text: item.text,
+        words: words.map((w, wi) => ({
+          text: w,
+          start: startTime + (wi * wordDur),
+          end: startTime + ((wi + 1) * wordDur)
+        }))
+      };
+    });
+  };
+
+  // When only plain lyrics are available, distribute them accurately across audio duration
+  const formatPlainLyricsToCache = (plainText, audioDuration) => {
+    const lines = plainText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return [];
+    
+    const duration = audioDuration && audioDuration > 5 ? audioDuration : 30;
+    const introBuffer = Math.min(2.0, duration * 0.05);
+    const usableDuration = duration - introBuffer;
+    const lineDuration = usableDuration / lines.length;
+
+    return lines.map((text, i) => {
+      const startTime = introBuffer + (i * lineDuration);
+      const words = text.split(/\s+/).filter(w => w.length > 0);
+      const wordDur = lineDuration / Math.max(1, words.length);
+
+      return {
+        time: startTime,
+        text: text,
+        words: words.map((w, wi) => ({
+          text: w,
+          start: startTime + (wi * wordDur),
+          end: startTime + ((wi + 1) * wordDur)
+        }))
+      };
+    });
+  };
+
   transcribeBtn.onclick = async () => {
     if (!currentFile || isTranscribing) return;
     isTranscribing = true;
@@ -1097,13 +1204,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedLang = transcribeLanguageSelect ? transcribeLanguageSelect.value : 'auto';
     const whisperLang = selectedLang === 'auto' ? null : selectedLang;
     const langDisplay = selectedLang === 'auto' ? 'Auto-Detect' : selectedLang.toUpperCase();
+    const songDuration = wavesurfer ? wavesurfer.getDuration() : 30;
     
     try {
       let lyricsObtained = false;
 
       // 1. If Cloud song, check online lyrics database first
       if (currentFile === "cloud") {
-        transcriptOutput.innerHTML = `<div style="color:var(--cmd-cyan); margin-bottom: 10px;">☁️ Searching lyrics database for ${langDisplay}...</div>`;
+        transcriptOutput.innerHTML = `<div style="color:var(--cmd-cyan); margin-bottom: 10px;">☁️ Searching synchronized lyrics database for [${langDisplay}]...</div>`;
         
         // Clean title for improved match rate
         const cleanTitle = activeSongName.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').replace(/-.*$/, '').trim();
@@ -1113,17 +1221,15 @@ document.addEventListener('DOMContentLoaded', () => {
           const response = await fetch(`/api/lyrics?artist=${encodeURIComponent(cleanArtist)}&title=${encodeURIComponent(cleanTitle)}`);
           if (response.ok) {
             const data = await response.json();
-            if (data.lyrics && data.lyrics.trim().length > 30) {
-              const lines = data.lyrics.split('\n').filter(l => l.trim() !== '');
-              transcriptionCache = lines.map((text, i) => {
-                const lineTime = i * 3.5;
-                const words = text.split(' ').map((w, wi, arr) => ({
-                  text: w,
-                  start: lineTime + (wi * (3.5 / arr.length)),
-                  end: lineTime + ((wi + 1) * (3.5 / arr.length))
-                }));
-                return { time: lineTime, text, words };
-              });
+            if (data.synced && data.syncedLyrics) {
+              const lrcCache = parseLRCtoCache(data.syncedLyrics, songDuration);
+              if (lrcCache && lrcCache.length > 0) {
+                transcriptionCache = lrcCache;
+                lyricsObtained = true;
+                console.log("⏱️ Loaded exact time-synchronized LRC lyrics matching song speed!");
+              }
+            } else if (data.lyrics && data.lyrics.trim().length > 30) {
+              transcriptionCache = formatPlainLyricsToCache(data.lyrics, songDuration);
               lyricsObtained = true;
             }
           }
@@ -1141,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
           transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
         }
 
-        transcriptOutput.innerHTML = `<div style="color:#ec4899; margin-bottom: 10px;">🧠 AI Transcribing audio in [${langDisplay}]...</div>`;
+        transcriptOutput.innerHTML = `<div style="color:#ec4899; margin-bottom: 10px;">🧠 AI Listening & syncing tempo to song speed...</div>`;
 
         let arrayBuffer = null;
         if (currentFile === "cloud") {
@@ -1165,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
           chunk_length_s: 30,
           stride_length_s: 5,
           task: 'transcribe', // Transcribes in the original language of the song!
-          return_timestamps: 'word'
+          return_timestamps: true // Real sentence & phrase timestamps directly from audio!
         };
         if (whisperLang) {
           whisperOptions.language = whisperLang;
@@ -1174,23 +1280,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await transcriber(audioData, whisperOptions);
 
         if (result.chunks && result.chunks.length > 0) {
-          const wordsPerLine = 6;
-          transcriptionCache = [];
-          for (let i = 0; i < result.chunks.length; i += wordsPerLine) {
-            const chunkSlice = result.chunks.slice(i, i + wordsPerLine);
-            const lineText = chunkSlice.map(c => c.text).join(' ');
-            transcriptionCache.push({
-              time: chunkSlice[0].timestamp[0],
-              text: lineText,
-              words: chunkSlice.map(c => ({
-                text: c.text,
-                start: c.timestamp[0],
-                end: c.timestamp[1]
+          transcriptionCache = result.chunks.map((chunk, index) => {
+            const rawStart = Array.isArray(chunk.timestamp) ? chunk.timestamp[0] : null;
+            const rawEnd = Array.isArray(chunk.timestamp) ? chunk.timestamp[1] : null;
+            
+            const startTime = typeof rawStart === 'number' ? rawStart : index * 3.5;
+            const endTime = typeof rawEnd === 'number' ? rawEnd : startTime + 3.5;
+            const duration = Math.max(0.6, endTime - startTime);
+            
+            const words = chunk.text.trim().split(/\s+/).filter(w => w.length > 0);
+            const wordDur = duration / Math.max(1, words.length);
+
+            return {
+              time: startTime,
+              text: chunk.text.trim(),
+              words: words.map((w, wi) => ({
+                text: w,
+                start: startTime + (wi * wordDur),
+                end: startTime + ((wi + 1) * wordDur)
               }))
-            });
-          }
+            };
+          });
         } else if (result.text && result.text.trim()) {
-          transcriptionCache = [{ time: 0, text: result.text.trim(), words: [] }];
+          transcriptionCache = formatPlainLyricsToCache(result.text, songDuration);
         } else {
           transcriptionCache = [{ time: 0, text: "🎵 Instrumental / No audible speech detected in track 🎵", words: [] }];
         }

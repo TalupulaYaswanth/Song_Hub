@@ -6,6 +6,7 @@ import urllib.parse
 import json
 import base64
 import time
+import re
 
 app = Flask(__name__)
 # Secure database URI inside the instance folder (standard Flask practice)
@@ -151,23 +152,64 @@ def block_user():
 def get_lyrics():
     artist = request.args.get('artist', '')
     title = request.args.get('title', '')
-    if not artist or not title:
-        return jsonify({"error": "Missing artist or title"}), 400
+    if not title:
+        return jsonify({"error": "Missing song title"}), 400
 
+    # Clean title and artist to maximize lyrics search match rate
+    clean_title = re.sub(r'\(.*?\)|\[.*?\]', '', title)
+    clean_title = re.split(r'\s*-\s*', clean_title)[0].strip()
+    clean_artist = re.split(r'[,&]', artist)[0].strip() if artist else ''
+
+    # 1. Search Lrclib for exact time-synchronized lyrics (matching song tempo & timestamps)
     try:
-        # URL encode to handle spaces and special characters safely
-        safe_artist = urllib.parse.quote(artist)
-        safe_title = urllib.parse.quote(title)
-        
+        query_str = f"{clean_title} {clean_artist}".strip()
+        safe_q = urllib.parse.quote(query_str)
         req = urllib.request.Request(
-            f'https://api.lyrics.ovh/v1/{safe_artist}/{safe_title}',
-            headers={'User-Agent': 'Mozilla/5.0'}
+            f'https://lrclib.net/api/search?q={safe_q}',
+            headers={'User-Agent': 'SongToTextApp/1.0'}
         )
         response = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(response.read().decode('utf-8'))
-        return jsonify({"lyrics": data.get('lyrics', '')})
+        results = json.loads(response.read().decode('utf-8'))
+
+        if isinstance(results, list) and len(results) > 0:
+            # Check for syncedLyrics with exact millisecond timestamps
+            for item in results:
+                if item.get('syncedLyrics') and len(item['syncedLyrics'].strip()) > 30:
+                    return jsonify({
+                        "synced": True,
+                        "syncedLyrics": item['syncedLyrics'],
+                        "plainLyrics": item.get('plainLyrics', ''),
+                        "duration": item.get('duration', 0)
+                    })
+            
+            # If no synced lyrics, return plain lyrics from first match
+            for item in results:
+                if item.get('plainLyrics') and len(item['plainLyrics'].strip()) > 30:
+                    return jsonify({
+                        "synced": False,
+                        "lyrics": item['plainLyrics'],
+                        "duration": item.get('duration', 0)
+                    })
     except Exception as e:
-        return jsonify({"error": str(e)}), 404
+        print(f"Lrclib Search error: {e}")
+
+    # 2. Fallback to Lyrics.ovh
+    try:
+        if clean_artist and clean_title:
+            safe_artist = urllib.parse.quote(clean_artist)
+            safe_title = urllib.parse.quote(clean_title)
+            req = urllib.request.Request(
+                f'https://api.lyrics.ovh/v1/{safe_artist}/{safe_title}',
+                headers={'User-Agent': 'Mozilla/5.0'}
+            )
+            response = urllib.request.urlopen(req, timeout=4)
+            data = json.loads(response.read().decode('utf-8'))
+            if data.get('lyrics'):
+                return jsonify({"synced": False, "lyrics": data.get('lyrics')})
+    except Exception as e:
+        print(f"Lyrics.ovh fallback error: {e}")
+
+    return jsonify({"error": "No lyrics found"}), 404
 
 @app.route('/api/proxy/audio', methods=['GET'])
 def proxy_audio():
