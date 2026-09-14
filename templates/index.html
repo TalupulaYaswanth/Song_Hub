@@ -324,10 +324,10 @@
     <!-- Main Web Dashboard Screen -->
     <div id="phone-app" class="web-dashboard glass" style="display: none;">
 
-      <!-- Top Bar -->
+      <!-- Top Bar with Back & Minimize to Bubble Buttons -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
         <button id="back-library-btn"
-          style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; transition: color 0.2s ease;">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" />
@@ -335,8 +335,19 @@
           </svg>
           Library
         </button>
-        <h2 style="font-size: 18px; font-weight: 600;">God Player</h2>
-        <div style="width: 20px;"></div>
+        <h2 style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">God Player</h2>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <!-- Minimize to Bubble Button on Top Right Corner -->
+          <button id="minimize-player-btn" class="player-minimize-btn" title="Minimize to Floating Bubble"
+            style="background: rgba(255, 255, 255, 0.06); border: 1px solid var(--glass-border); border-radius: 10px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 14 10 14 10 20"></polyline>
+              <polyline points="20 10 14 10 14 4"></polyline>
+              <line x1="14" y1="10" x2="21" y2="3"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="main-content">
@@ -450,6 +461,52 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Floating Mini Player Bubble (Minimized state for selecting other songs) -->
+  <div id="floating-mini-player" class="mini-player-bubble" style="display: none;" title="Click to expand God Player">
+    <!-- Spinning Vinyl Album Art Disc -->
+    <div class="mini-disc-container">
+      <div id="mini-player-artwork" class="mini-disc-art">
+        <div class="mini-disc-center"></div>
+      </div>
+      <!-- Mini Play/Pause overlay button -->
+      <button id="mini-play-btn" class="mini-disc-play-btn" title="Play / Pause">
+        <svg id="mini-play-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </button>
+      <!-- Mini Equalizer Bars -->
+      <div id="mini-equalizer-bars" class="mini-equalizer">
+        <span class="eq-bar eq-1"></span>
+        <span class="eq-bar eq-2"></span>
+        <span class="eq-bar eq-3"></span>
+      </div>
+    </div>
+
+    <!-- Song Info (Visible on hover or wide screens) -->
+    <div class="mini-info-wrapper">
+      <div id="mini-player-title" class="mini-title">Track Name</div>
+      <div id="mini-player-artist" class="mini-artist">Artist</div>
+    </div>
+
+    <!-- Mini Controls: Expand & Close -->
+    <div class="mini-actions">
+      <button id="mini-expand-btn" class="mini-action-btn" title="Expand God Player">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <polyline points="9 21 3 21 3 15"></polyline>
+          <line x1="21" y1="3" x2="14" y2="10"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+      </button>
+      <button id="mini-close-btn" class="mini-action-btn mini-close" title="Stop & Close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
   </div>
 

@@ -16,6 +16,8 @@ if not os.path.exists(instance_path):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "database.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
 
 # --- Spotify API Credentials ---
 # Get yours free at: https://developer.spotify.com/dashboard

@@ -134,10 +134,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let searchExpanded = false;
   let currentSongsList = [...OFFLINE_COLLECTION];
   let isShuffleActive = true;
+  let activeArtworkUrl = "/static/assets/images/song1.jpg";
+  let isPlayerMinimized = false;
 
   const shuffleLibraryBtn = document.getElementById('shuffle-library-btn');
   const shuffleBtn = document.getElementById('shuffle-btn');
   const nextRandomBtn = document.getElementById('next-random-btn');
+
+  // Floating Mini Player Elements
+  const minimizePlayerBtn = document.getElementById('minimize-player-btn');
+  const floatingMiniPlayer = document.getElementById('floating-mini-player');
+  const miniPlayerArtwork = document.getElementById('mini-player-artwork');
+  const miniPlayerTitle = document.getElementById('mini-player-title');
+  const miniPlayerArtist = document.getElementById('mini-player-artist');
+  const miniPlayBtn = document.getElementById('mini-play-btn');
+  const miniPlayIcon = document.getElementById('mini-play-icon');
+  const miniEqualizerBars = document.getElementById('mini-equalizer-bars');
+  const miniExpandBtn = document.getElementById('mini-expand-btn');
+  const miniCloseBtn = document.getElementById('mini-close-btn');
 
   // Auth State Management
   onAuthStateChanged(auth, async (user) => {
@@ -243,10 +257,17 @@ document.addEventListener('DOMContentLoaded', () => {
         height: 250,
       });
 
-      wavesurfer.on('play', () => { playPauseBtn.innerHTML = pauseIconTemplate; });
-      wavesurfer.on('pause', () => { playPauseBtn.innerHTML = playIconTemplate; });
+      wavesurfer.on('play', () => { 
+        playPauseBtn.innerHTML = pauseIconTemplate; 
+        updateMiniPlayerUI();
+      });
+      wavesurfer.on('pause', () => { 
+        playPauseBtn.innerHTML = playIconTemplate; 
+        updateMiniPlayerUI();
+      });
       wavesurfer.on('finish', () => {
         playPauseBtn.innerHTML = playIconTemplate;
+        updateMiniPlayerUI();
         if (isShuffleActive) {
           console.log("🔀 Continuous Random Play: song finished, loading next random track...");
           setTimeout(() => {
@@ -614,6 +635,13 @@ document.addEventListener('DOMContentLoaded', () => {
     activeAudioUrl = audioUrl;
     activeSongName = trackName;
     activeArtistName = artistName || "";
+    activeArtworkUrl = imageSource || "/static/assets/images/song1.jpg";
+
+    if (floatingMiniPlayer) {
+      floatingMiniPlayer.style.display = 'none';
+    }
+    isPlayerMinimized = false;
+
     libraryScreen.style.display = 'none';
     phoneApp.style.display = 'flex';
     currentFile = "cloud";
@@ -624,6 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
     transcribeBtn.disabled = false;
     downloadTxtBtn.style.display = 'none';
     transcriptOutput.textContent = "Song retrieved from Cloud. Tap transcribe to analyze.";
+    updateMiniPlayerUI();
   };
 
   // SQL History Logic
@@ -1038,10 +1067,130 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  backLibraryBtn.onclick = () => {
+  // ── Floating Mini Player Bubble Engine ──
+  const updateMiniPlayerUI = () => {
+    if (!floatingMiniPlayer) return;
+
+    const artUrl = activeArtworkUrl || '/static/assets/images/song1.jpg';
+    if (miniPlayerArtwork) {
+      miniPlayerArtwork.style.backgroundImage = `url("${artUrl}")`;
+      miniPlayerArtwork.style.backgroundSize = 'cover';
+      miniPlayerArtwork.style.backgroundPosition = 'center';
+    }
+    if (miniPlayerTitle) {
+      miniPlayerTitle.textContent = activeSongName || "Playing Track";
+    }
+    if (miniPlayerArtist) {
+      miniPlayerArtist.textContent = activeArtistName || "Unknown Artist";
+    }
+
+    const isPlaying = wavesurfer && wavesurfer.isPlaying();
+    if (miniPlayerArtwork) {
+      if (isPlaying) {
+        miniPlayerArtwork.classList.add('spinning');
+      } else {
+        miniPlayerArtwork.classList.remove('spinning');
+      }
+    }
+    if (miniEqualizerBars) {
+      if (isPlaying) {
+        miniEqualizerBars.classList.add('animating');
+      } else {
+        miniEqualizerBars.classList.remove('animating');
+      }
+    }
+    if (miniPlayIcon) {
+      if (isPlaying) {
+        miniPlayIcon.innerHTML = `<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>`;
+      } else {
+        miniPlayIcon.innerHTML = `<polygon points="5 3 19 12 5 21 5 3"/>`;
+      }
+    }
+  };
+
+  const minimizePlayer = () => {
+    if (!wavesurfer || !activeSongName) {
+      phoneApp.style.display = 'none';
+      libraryScreen.style.display = 'flex';
+      return;
+    }
+
+    isPlayerMinimized = true;
     phoneApp.style.display = 'none';
     libraryScreen.style.display = 'flex';
-    wavesurfer.pause();
+
+    updateMiniPlayerUI();
+    if (floatingMiniPlayer) {
+      floatingMiniPlayer.style.display = 'flex';
+      floatingMiniPlayer.classList.remove('exit');
+      floatingMiniPlayer.classList.add('enter');
+    }
+    console.log("🫧 God Player minimized into floating mini bubble on the right side.");
+  };
+
+  const expandPlayer = () => {
+    isPlayerMinimized = false;
+    if (floatingMiniPlayer) {
+      floatingMiniPlayer.classList.remove('enter');
+      floatingMiniPlayer.classList.add('exit');
+      setTimeout(() => {
+        if (!isPlayerMinimized && floatingMiniPlayer) {
+          floatingMiniPlayer.style.display = 'none';
+          floatingMiniPlayer.classList.remove('exit');
+        }
+      }, 220);
+    }
+    libraryScreen.style.display = 'none';
+    phoneApp.style.display = 'flex';
+    console.log("📱 Restored full God Player view.");
+  };
+
+  if (minimizePlayerBtn) {
+    minimizePlayerBtn.onclick = () => minimizePlayer();
+  }
+
+  if (floatingMiniPlayer) {
+    floatingMiniPlayer.onclick = (e) => {
+      if (e.target.closest('#mini-close-btn') || e.target.closest('#mini-play-btn')) return;
+      expandPlayer();
+    };
+  }
+
+  if (miniExpandBtn) {
+    miniExpandBtn.onclick = (e) => {
+      e.stopPropagation();
+      expandPlayer();
+    };
+  }
+
+  if (miniPlayBtn) {
+    miniPlayBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (wavesurfer) {
+        wavesurfer.playPause();
+      }
+    };
+  }
+
+  if (miniCloseBtn) {
+    miniCloseBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (wavesurfer) {
+        wavesurfer.pause();
+      }
+      isPlayerMinimized = false;
+      floatingMiniPlayer.style.display = 'none';
+    };
+  }
+
+  backLibraryBtn.onclick = () => {
+    if (wavesurfer && wavesurfer.isPlaying()) {
+      minimizePlayer();
+    } else {
+      phoneApp.style.display = 'none';
+      libraryScreen.style.display = 'flex';
+      if (wavesurfer) wavesurfer.pause();
+    }
   };
 
   uploadZone.onclick = () => audioInput.click();
@@ -1050,13 +1199,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (file) {
       currentFile = file;
       activeSongName = file.name;
-      activeArtistName = "";
+      activeArtistName = "Local Audio";
+      activeArtworkUrl = "/static/assets/images/song1.jpg";
       transcriptionCache = [];
       fileNameDisplay.textContent = file.name;
       wavesurfer.load(URL.createObjectURL(file));
       playPauseBtn.disabled = transcribeBtn.disabled = false;
       downloadTxtBtn.style.display = 'none';
       transcriptOutput.textContent = "Local file ready. Tap transcribe to run AI (may take a moment to load model initially).";
+      updateMiniPlayerUI();
     }
   };
 
