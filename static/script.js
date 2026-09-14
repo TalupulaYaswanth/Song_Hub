@@ -131,6 +131,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let isViewingSavedLibrary = false;
   let cachedSavedSongs = [];
   let searchExpanded = false;
+  let currentSongsList = [...OFFLINE_COLLECTION];
+  let isShuffleActive = true;
+
+  const shuffleLibraryBtn = document.getElementById('shuffle-library-btn');
+  const shuffleBtn = document.getElementById('shuffle-btn');
+  const nextRandomBtn = document.getElementById('next-random-btn');
 
   // Auth State Management
   onAuthStateChanged(auth, async (user) => {
@@ -238,7 +244,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       wavesurfer.on('play', () => { playPauseBtn.innerHTML = pauseIconTemplate; });
       wavesurfer.on('pause', () => { playPauseBtn.innerHTML = playIconTemplate; });
-      wavesurfer.on('finish', () => { playPauseBtn.innerHTML = playIconTemplate; });
+      wavesurfer.on('finish', () => {
+        playPauseBtn.innerHTML = playIconTemplate;
+        if (isShuffleActive) {
+          console.log("🔀 Continuous Random Play: song finished, loading next random track...");
+          setTimeout(() => {
+            playRandomSong();
+          }, 800);
+        }
+      });
 
       let lastActiveLineIndex = -1;
       wavesurfer.on('timeupdate', (currentTime) => {
@@ -386,6 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }  };
 
   const renderSongs = (songs) => {
+    currentSongsList = songs && songs.length > 0 ? songs : OFFLINE_COLLECTION;
     songGrid.innerHTML = '';
     songs.forEach(song => {
       const card = document.createElement('div');
@@ -993,6 +1008,62 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   playPauseBtn.onclick = () => wavesurfer.playPause();
+
+  // 🔀 Random Play / Shuffle Engine
+  const playRandomSong = () => {
+    const list = (currentSongsList && currentSongsList.length > 0) ? currentSongsList : OFFLINE_COLLECTION;
+    if (!list || list.length === 0) return;
+    
+    // Pick a candidate (avoiding same song when possible)
+    let candidate = list[Math.floor(Math.random() * list.length)];
+    if (list.length > 1 && candidate.trackName === activeSongName) {
+      const candidates = list.filter(s => s.trackName !== activeSongName);
+      if (candidates.length > 0) {
+        candidate = candidates[Math.floor(Math.random() * candidates.length)];
+      }
+    }
+    
+    console.log(`🔀 Playing in Random: ${candidate.trackName}`);
+    selectSong(candidate.previewUrl, candidate.trackName, candidate.artworkUrl, candidate.artistName);
+    
+    wavesurfer.once('ready', () => {
+      wavesurfer.play();
+    });
+  };
+
+  const updateShuffleUI = () => {
+    if (!shuffleBtn) return;
+    if (isShuffleActive) {
+      shuffleBtn.style.background = 'rgba(236, 72, 153, 0.25)';
+      shuffleBtn.style.borderColor = '#ec4899';
+      shuffleBtn.style.color = '#ec4899';
+      shuffleBtn.style.boxShadow = '0 0 16px rgba(236, 72, 153, 0.6)';
+    } else {
+      shuffleBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+      shuffleBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+      shuffleBtn.style.color = 'var(--text-secondary)';
+      shuffleBtn.style.boxShadow = 'none';
+    }
+  };
+
+  if (shuffleBtn) {
+    updateShuffleUI();
+    shuffleBtn.onclick = () => {
+      isShuffleActive = !isShuffleActive;
+      updateShuffleUI();
+      if (isShuffleActive && (!wavesurfer || !wavesurfer.isPlaying())) {
+        playRandomSong();
+      }
+    };
+  }
+
+  if (nextRandomBtn) {
+    nextRandomBtn.onclick = () => playRandomSong();
+  }
+
+  if (shuffleLibraryBtn) {
+    shuffleLibraryBtn.onclick = () => playRandomSong();
+  }
 
   transcribeBtn.onclick = async () => {
     if (!currentFile || isTranscribing) return;
