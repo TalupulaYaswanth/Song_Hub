@@ -169,6 +169,18 @@ def get_lyrics():
     except Exception as e:
         return jsonify({"error": str(e)}), 404
 
+@app.route('/api/proxy/audio', methods=['GET'])
+def proxy_audio():
+    url = request.args.get('url', '')
+    if not url:
+        return jsonify({"error": "Missing url"}), 400
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        response = urllib.request.urlopen(req, timeout=10)
+        return response.read(), 200, {'Content-Type': 'audio/mpeg', 'Access-Control-Allow-Origin': '*'}
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # --- Spotify API ---
 
 def get_spotify_token():

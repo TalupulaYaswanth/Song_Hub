@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let wavesurfer = null;
   let activeSongName = "";
   let activeArtistName = "";
+  let activeAudioUrl = "";
   let transcriptionCache = [];
   let isViewingSavedLibrary = false;
   let cachedSavedSongs = [];
@@ -569,6 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const selectSong = (audioUrl, trackName, imageSource, artistName) => {
+    activeAudioUrl = audioUrl;
     activeSongName = trackName;
     activeArtistName = artistName || "";
     libraryScreen.style.display = 'none';
@@ -786,10 +788,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const fetchByFilters = () => {
     const lang = languageSelect.value;
     const year = yearSelect && yearSelect.value ? yearSelect.value : '';
+    
+    // Auto-sync transcription language selector to match song region
+    const transcribeLanguageSelect = document.getElementById('transcribe-language-select');
+    const regionMap = {
+      'bollywood': 'hindi',
+      'hindi': 'hindi',
+      'telugu': 'telugu',
+      'tamil': 'tamil',
+      'punjabi': 'punjabi',
+      'malayalam': 'malayalam',
+      'marathi': 'marathi',
+      'english': 'english'
+    };
+    if (transcribeLanguageSelect && regionMap[lang]) {
+      transcribeLanguageSelect.value = regionMap[lang];
+    }
+
     // Appending 'hits' helps the APIs find relevant music clusters for a specific era
     const query = year ? `${lang} ${year} hits` : lang;
     fetchLibrary(query);
-    console.log(`🎵 Filter Applied: ${query}`);
+    console.log(`🎵 Filter Applied: ${query} (Song Language synced: ${regionMap[lang] || 'auto'})`);
   };
 
   languageSelect.onchange = fetchByFilters;
@@ -1071,76 +1090,113 @@ document.addEventListener('DOMContentLoaded', () => {
     transcribeBtn.disabled = true;
     downloadTxtBtn.style.display = 'none';
     transcribeText.textContent = 'Processing...';
-    transcriptOutput.innerHTML = '<div style="color:var(--primary-glow); margin-bottom: 10px;">Initializing...</div>';
+    transcriptOutput.innerHTML = '<div style="color:var(--primary-glow); margin-bottom: 10px;">Initializing transcription...</div>';
+
+    // Read selected song language
+    const transcribeLanguageSelect = document.getElementById('transcribe-language-select');
+    const selectedLang = transcribeLanguageSelect ? transcribeLanguageSelect.value : 'auto';
+    const whisperLang = selectedLang === 'auto' ? null : selectedLang;
+    const langDisplay = selectedLang === 'auto' ? 'Auto-Detect' : selectedLang.toUpperCase();
     
     try {
-      if (currentFile === "cloud") {
-        // Fast Cloud Lyrics API
-        transcriptOutput.innerHTML = '<div style="color:var(--cmd-cyan); margin-bottom: 10px;">☁️ Fetching real lyrics from Global Database...</div>';
-        
-        const response = await fetch(`/api/lyrics?artist=${encodeURIComponent(activeArtistName)}&title=${encodeURIComponent(activeSongName)}`);
-        const data = await response.json();
-        
-        if (data.lyrics) {
-          const lines = data.lyrics.split('\n').filter(l => l.trim() !== '');
-          transcriptionCache = lines.map((text, i) => {
-            const lineTime = i * 3.5;
-            const words = text.split(' ').map((w, wi, arr) => ({
-              text: w,
-              start: lineTime + (wi * (3.5 / arr.length)),
-              end: lineTime + ((wi + 1) * (3.5 / arr.length))
-            }));
-            return { time: lineTime, text, words };
-          });
-        } else {
-          transcriptionCache = [
-            { time: 0, text: "🎵 Instrumental / No Lyrics Found 🎵", words: [{text: "Instrumental", start: 0, end: 5}] }
-          ];
-        }
-      } else {
-        // Local AI Whisper Transcription
-        transcriptOutput.innerHTML = '<div style="color:#ec4899; margin-bottom: 10px;">🧠 Loading AI Model...</div>';
-        
-        if (!transcriber) {
-          transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
-        }
-        
-        transcriptOutput.innerHTML = '<div style="color:#ec4899; margin-bottom: 10px;">🧠 AI Listening word-by-word...</div>';
-        
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        const arrayBuffer = await currentFile.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        const audioData = audioBuffer.getChannelData(0);
-        
-        const result = await transcriber(audioData, {
-            chunk_length_s: 30,
-            stride_length_s: 5,
-            return_timestamps: 'word',
-        });
+      let lyricsObtained = false;
 
-        if (result.chunks && result.chunks.length > 0) {
-           // Group words into lines for better UI
-           const wordsPerLine = 6;
-           transcriptionCache = [];
-           for (let i = 0; i < result.chunks.length; i += wordsPerLine) {
-              const chunkSlice = result.chunks.slice(i, i + wordsPerLine);
-              const lineText = chunkSlice.map(c => c.text).join(' ');
-              transcriptionCache.push({
-                time: chunkSlice[0].timestamp[0],
-                text: lineText,
-                words: chunkSlice.map(c => ({
-                  text: c.text,
-                  start: c.timestamp[0],
-                  end: c.timestamp[1]
-                }))
+      // 1. If Cloud song, check online lyrics database first
+      if (currentFile === "cloud") {
+        transcriptOutput.innerHTML = `<div style="color:var(--cmd-cyan); margin-bottom: 10px;">☁️ Searching lyrics database for ${langDisplay}...</div>`;
+        
+        // Clean title for improved match rate
+        const cleanTitle = activeSongName.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').replace(/-.*$/, '').trim();
+        const cleanArtist = activeArtistName.split(',')[0].trim();
+
+        try {
+          const response = await fetch(`/api/lyrics?artist=${encodeURIComponent(cleanArtist)}&title=${encodeURIComponent(cleanTitle)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.lyrics && data.lyrics.trim().length > 30) {
+              const lines = data.lyrics.split('\n').filter(l => l.trim() !== '');
+              transcriptionCache = lines.map((text, i) => {
+                const lineTime = i * 3.5;
+                const words = text.split(' ').map((w, wi, arr) => ({
+                  text: w,
+                  start: lineTime + (wi * (3.5 / arr.length)),
+                  end: lineTime + ((wi + 1) * (3.5 / arr.length))
+                }));
+                return { time: lineTime, text, words };
               });
-           }
-        } else {
-           transcriptionCache = [{ time: 0, text: result.text, words: [] }];
+              lyricsObtained = true;
+            }
+          }
+        } catch (cloudErr) {
+          console.warn("Cloud lyrics lookup failed, switching to AI Whisper model:", cloudErr);
         }
       }
-      
-      // Verification & Display logic (Word-by-Word Spans)
+
+      // 2. If Cloud lyrics were not found or this is a local audio file, run Multilingual AI Whisper Model!
+      if (!lyricsObtained) {
+        transcriptOutput.innerHTML = `<div style="color:#ec4899; margin-bottom: 10px;">🧠 Loading Multilingual AI Model (Whisper: ${langDisplay})...</div>`;
+        
+        // Load Multilingual Whisper model (supporting Hindi, Telugu, Tamil, Punjabi, English, etc.)
+        if (!transcriber) {
+          transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
+        }
+
+        transcriptOutput.innerHTML = `<div style="color:#ec4899; margin-bottom: 10px;">🧠 AI Transcribing audio in [${langDisplay}]...</div>`;
+
+        let arrayBuffer = null;
+        if (currentFile === "cloud") {
+          try {
+            const audioRes = await fetch(activeAudioUrl);
+            arrayBuffer = await audioRes.arrayBuffer();
+          } catch (corsErr) {
+            console.log("Direct audio fetch blocked by CORS, fetching via server proxy...");
+            const proxyRes = await fetch(`/api/proxy/audio?url=${encodeURIComponent(activeAudioUrl)}`);
+            arrayBuffer = await proxyRes.arrayBuffer();
+          }
+        } else {
+          arrayBuffer = await currentFile.arrayBuffer();
+        }
+
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        const audioData = audioBuffer.getChannelData(0);
+
+        const whisperOptions = {
+          chunk_length_s: 30,
+          stride_length_s: 5,
+          task: 'transcribe', // Transcribes in the original language of the song!
+          return_timestamps: 'word'
+        };
+        if (whisperLang) {
+          whisperOptions.language = whisperLang;
+        }
+
+        const result = await transcriber(audioData, whisperOptions);
+
+        if (result.chunks && result.chunks.length > 0) {
+          const wordsPerLine = 6;
+          transcriptionCache = [];
+          for (let i = 0; i < result.chunks.length; i += wordsPerLine) {
+            const chunkSlice = result.chunks.slice(i, i + wordsPerLine);
+            const lineText = chunkSlice.map(c => c.text).join(' ');
+            transcriptionCache.push({
+              time: chunkSlice[0].timestamp[0],
+              text: lineText,
+              words: chunkSlice.map(c => ({
+                text: c.text,
+                start: c.timestamp[0],
+                end: c.timestamp[1]
+              }))
+            });
+          }
+        } else if (result.text && result.text.trim()) {
+          transcriptionCache = [{ time: 0, text: result.text.trim(), words: [] }];
+        } else {
+          transcriptionCache = [{ time: 0, text: "🎵 Instrumental / No audible speech detected in track 🎵", words: [] }];
+        }
+      }
+
+      // Display transcribed lyrics
       transcriptOutput.innerHTML = "";
       transcriptionCache.forEach(line => {
         const lineDiv = document.createElement('div');
@@ -1159,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       downloadTxtBtn.style.display = 'block';
       await saveTranscriptionHistory(activeSongName, transcriptionCache);
-      
+
     } catch (e) {
       console.error("Transcription Error:", e);
       transcriptOutput.innerHTML = `<div style="color:#ff4757">Error: ${e.message}</div>`;
