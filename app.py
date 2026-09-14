@@ -354,11 +354,11 @@ def delete_song():
     return jsonify({"error": "Song not found"}), 404
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
     try:
         from waitress import serve
-        print("[*] Starting Production WSGI Server (Waitress) on port 5000...")
-        serve(app, host='0.0.0.0', port=5000)
+        print(f"[*] Starting Production WSGI Server (Waitress) on port {port}...")
+        serve(app, host='0.0.0.0', port=port)
     except ImportError:
-        print("[!] Waitress not installed. Falling back to Flask development server.")
-        print("   To fix the warning, run: pip install waitress")
-        app.run(debug=True, port=5000)
+        print(f"[!] Running Flask development server on port {port}...")
+        app.run(host='0.0.0.0', port=port)
