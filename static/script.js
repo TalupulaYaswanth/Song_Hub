@@ -490,6 +490,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <img src="${artworkUrl}" alt="${safeTrackName}">
         <h3>${safeTrackName}</h3>
         <p>${safeArtistName}</p>
+        <div class="song-card-tags" style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px;">
+          <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.35); color: #a78bfa;">${song.provider || 'Cloud'}</span>
+          <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(0, 243, 255, 0.12); border: 1px solid rgba(0, 243, 255, 0.3); color: #00f3ff;">⚡ Synced</span>
+          <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(236, 72, 153, 0.12); border: 1px solid rgba(236, 72, 153, 0.3); color: #ec4899;">AI Lyrics</span>
+        </div>
         <button class="save-lib-btn" style="width: 100%; margin-top: 10px; padding: 6px; background: rgba(236, 72, 153, 0.1); border: 1px solid #ec4899; color: #ec4899; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 4px; z-index: 2;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
           Save to Library
