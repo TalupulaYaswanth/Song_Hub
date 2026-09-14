@@ -363,39 +363,92 @@ body.theme-cyber .header-text { background: linear-gradient(to right, #00f3ff, #
 }
 
 #transcript-output {
-  font-size: 16px;
-  line-height: 1.8;
+  font-size: 17px;
+  line-height: 2.1;
+  user-select: none;
 }
 
 .lyric-line {
-  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
-  opacity: 0.5;
+  margin: 10px 0;
+  padding: 8px 14px;
+  border-radius: 12px;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease;
+  opacity: 0.38;
   display: block;
+  cursor: pointer;
+  border-left: 3px solid transparent;
   will-change: transform, opacity;
+}
+
+.lyric-line:hover {
+  opacity: 0.8;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .lyric-line.active {
   opacity: 1;
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 1.25em;
-  font-weight: 600;
+  background: rgba(236, 72, 153, 0.08);
+  border-left: 3px solid var(--secondary-glow);
   transform: translateX(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 }
 
 .lyric-word {
   display: inline-block;
-  margin-right: 4px;
-  transition: color 0.15s ease, transform 0.15s ease;
-  color: var(--text-secondary);
-  opacity: 0.8;
-  will-change: transform;
+  margin: 2px 5px 2px 0;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: color 0.12s ease, text-shadow 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, opacity 0.12s ease;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+  cursor: pointer;
+  will-change: transform, color, text-shadow;
 }
 
+.lyric-word:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Sung word in the current line */
+.lyric-line.active .lyric-word.sung {
+  color: #ffffff;
+  opacity: 0.92;
+  font-weight: 600;
+}
+
+/* Active glowing word matching the song speed */
 .lyric-line.active .lyric-word.active {
-  color: var(--secondary-glow);
-  text-shadow: 0 0 12px rgba(236, 72, 153, 0.7);
-  transform: scale(1.1);
-  opacity: 1;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.4), rgba(139, 92, 246, 0.4));
+  border: 1px solid rgba(236, 72, 153, 0.75);
+  font-weight: 800;
+  opacity: 1 !important;
+  transform: scale(1.22) translateY(-2px);
+  text-shadow: 
+    0 0 8px #ec4899,
+    0 0 16px #ec4899,
+    0 0 30px #ff2a8d,
+    0 0 45px #8b5cf6;
+  box-shadow: 
+    0 0 16px rgba(236, 72, 153, 0.6),
+    0 0 30px rgba(139, 92, 246, 0.3);
+  animation: wordGlowPulse 0.9s infinite alternate ease-in-out;
+  z-index: 2;
+  position: relative;
+}
+
+@keyframes wordGlowPulse {
+  0% {
+    transform: scale(1.18) translateY(-2px);
+    text-shadow: 0 0 8px #ec4899, 0 0 18px #ff2a8d, 0 0 28px #ec4899;
+    box-shadow: 0 0 14px rgba(236, 72, 153, 0.5);
+  }
+  100% {
+    transform: scale(1.26) translateY(-3px);
+    text-shadow: 0 0 14px #ffffff, 0 0 24px #ec4899, 0 0 38px #ff2a8d, 0 0 55px #8b5cf6;
+    box-shadow: 0 0 24px rgba(236, 72, 153, 0.85), 0 0 40px rgba(139, 92, 246, 0.5);
+  }
 }
 
 .italic {

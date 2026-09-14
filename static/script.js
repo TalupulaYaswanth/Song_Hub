@@ -271,6 +271,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const lines = transcriptOutput.querySelectorAll('.lyric-line');
           if (lastActiveLineIndex >= 0 && lines[lastActiveLineIndex]) {
             lines[lastActiveLineIndex].classList.remove('active');
+            const oldWords = lines[lastActiveLineIndex].querySelectorAll('.lyric-word');
+            oldWords.forEach(w => w.classList.remove('active', 'sung'));
           }
           if (activeLineIndex >= 0 && lines[activeLineIndex]) {
             lines[activeLineIndex].classList.add('active');
@@ -279,20 +281,40 @@ document.addEventListener('DOMContentLoaded', () => {
           lastActiveLineIndex = activeLineIndex;
         }
 
-        // Handle Word Highlighting inside active line only
+        // Handle Dynamic Word Glow matching song speed
         if (activeLineIndex >= 0 && transcriptionCache[activeLineIndex]?.words?.length > 0) {
           const activeLineEl = transcriptOutput.querySelectorAll('.lyric-line')[activeLineIndex];
           if (activeLineEl) {
             const wordSpans = activeLineEl.querySelectorAll('.lyric-word');
             const wordsData = transcriptionCache[activeLineIndex].words;
-            wordSpans.forEach((wordSpan, wIndex) => {
+
+            for (let wIndex = 0; wIndex < wordSpans.length; wIndex++) {
+              const wordSpan = wordSpans[wIndex];
               const wData = wordsData[wIndex];
-              if (wData && currentTime >= wData.start && currentTime <= (wData.end || wData.start + 0.5)) {
-                if (!wordSpan.classList.contains('active')) wordSpan.classList.add('active');
+              if (!wData) continue;
+
+              const nextWord = wordsData[wIndex + 1];
+              const wordEnd = nextWord ? nextWord.start : (wData.end || (wData.start + 0.8));
+
+              if (currentTime >= wData.start && currentTime < wordEnd) {
+                // Currently sung word -> GLOW IN COLOR!
+                if (!wordSpan.classList.contains('active')) {
+                  wordSpan.classList.add('active');
+                  wordSpan.classList.remove('sung');
+                }
+              } else if (currentTime >= wordEnd) {
+                // Completed word in active line -> Solid white sung
+                if (!wordSpan.classList.contains('sung')) {
+                  wordSpan.classList.remove('active');
+                  wordSpan.classList.add('sung');
+                }
               } else {
-                if (wordSpan.classList.contains('active')) wordSpan.classList.remove('active');
+                // Upcoming word in active line -> Dimmed
+                if (wordSpan.classList.contains('active') || wordSpan.classList.contains('sung')) {
+                  wordSpan.classList.remove('active', 'sung');
+                }
               }
-            });
+            }
           }
         }
       });
@@ -663,18 +685,11 @@ document.addEventListener('DOMContentLoaded', () => {
           </button>
         `;
         div.onclick = () => {
-          transcriptOutput.innerHTML = "";
-          item.lyrics.forEach(l => {
-            const span = document.createElement('span');
-            span.className = 'lyric-line';
-            span.textContent = l.text;
-            transcriptOutput.appendChild(span);
-          });
+          transcriptionCache = item.lyrics;
+          renderLyricsDisplay(transcriptionCache);
           libraryScreen.style.display = 'none';
           phoneApp.style.display = 'flex';
           fileNameDisplay.textContent = item.songName;
-          
-          transcriptionCache = item.lyrics;
           downloadTxtBtn.style.display = 'block';
 
           historyModal.classList.remove('active');
@@ -1191,6 +1206,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  // Render full interactive karaoke display with glowing words
+  const renderLyricsDisplay = (lyricsList) => {
+    transcriptOutput.innerHTML = "";
+    if (!lyricsList || lyricsList.length === 0) return;
+
+    lyricsList.forEach((line, lineIndex) => {
+      const lineDiv = document.createElement('div');
+      lineDiv.className = 'lyric-line';
+      lineDiv.dataset.lineIndex = lineIndex;
+      lineDiv.dataset.time = line.time;
+
+      // Ensure words exist for highlighting
+      let words = line.words;
+      if (!words || words.length === 0) {
+        const rawWords = (line.text || '').split(/\s+/).filter(w => w.length > 0);
+        const dur = 3.0;
+        const wDur = dur / Math.max(1, rawWords.length);
+        words = rawWords.map((w, wi) => ({
+          text: w,
+          start: line.time + (wi * wDur),
+          end: line.time + ((wi + 1) * wDur)
+        }));
+        line.words = words;
+      }
+
+      words.forEach((w) => {
+        const wordSpan = document.createElement('span');
+        wordSpan.className = 'lyric-word';
+        wordSpan.textContent = w.text;
+        wordSpan.dataset.start = w.start;
+        wordSpan.dataset.end = w.end;
+        wordSpan.title = `Seek to ${Math.round(w.start * 10) / 10}s`;
+
+        // Click word to seek directly to that moment
+        wordSpan.onclick = (e) => {
+          e.stopPropagation();
+          if (wavesurfer) {
+            const dur = wavesurfer.getDuration();
+            if (dur > 0) {
+              wavesurfer.seekTo(Math.min(0.99, Math.max(0, w.start / dur)));
+              if (!wavesurfer.isPlaying()) wavesurfer.play();
+            }
+          }
+        };
+
+        lineDiv.appendChild(wordSpan);
+      });
+
+      // Click line to seek to start of line
+      lineDiv.onclick = () => {
+        if (wavesurfer) {
+          const dur = wavesurfer.getDuration();
+          if (dur > 0) {
+            wavesurfer.seekTo(Math.min(0.99, Math.max(0, line.time / dur)));
+            if (!wavesurfer.isPlaying()) wavesurfer.play();
+          }
+        }
+      };
+
+      transcriptOutput.appendChild(lineDiv);
+    });
+  };
+
   transcribeBtn.onclick = async () => {
     if (!currentFile || isTranscribing) return;
     isTranscribing = true;
@@ -1308,22 +1386,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Display transcribed lyrics
-      transcriptOutput.innerHTML = "";
-      transcriptionCache.forEach(line => {
-        const lineDiv = document.createElement('div');
-        lineDiv.className = 'lyric-line';
-        
-        line.words.forEach(w => {
-          const wordSpan = document.createElement('span');
-          wordSpan.className = 'lyric-word';
-          wordSpan.textContent = w.text + ' ';
-          lineDiv.appendChild(wordSpan);
-        });
-        
-        if (line.words.length === 0) lineDiv.textContent = line.text;
-        transcriptOutput.appendChild(lineDiv);
-      });
+      // Display transcribed lyrics with glowing words matching song speed
+      renderLyricsDisplay(transcriptionCache);
       
       downloadTxtBtn.style.display = 'block';
       await saveTranscriptionHistory(activeSongName, transcriptionCache);
