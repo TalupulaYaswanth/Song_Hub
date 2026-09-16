@@ -3,16 +3,25 @@ import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/fi
 // --- CONFIGURATION ---
 // ⚠️ PLEASE ENSURE THIS MATCHES YOUR MAIN script.js CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyBPXv3PvIHrDrNAoN4HxrQy-LIrXo4Bayo",
-  authDomain: "mylovely2d.firebaseapp.com",
-  projectId: "mylovely2d",
-  storageBucket: "mylovely2d.firebasestorage.app",
-  messagingSenderId: "252661420811",
-  appId: "1:252661420811:web:329709218c12b468b5480e",
-  measurementId: "G-LJBCG7XM2Q"
+  apiKey: "AIzaSyARWdp12QPwV8wTEfq6zR6YE7OOCIJtz5Q",
+  authDomain: "song-a5841.firebaseapp.com",
+  projectId: "song-a5841",
+  storageBucket: "song-a5841.firebasestorage.app",
+  messagingSenderId: "148443523795",
+  appId: "1:148443523795:web:6810d8daaaddaa75964226",
+  measurementId: "G-PTYLVQW1PS"
 };
 
-const OWNER_EMAIL = 'talupulayaswanth13@gmail.com';
+const OWNER_EMAILS = [
+  'talupulayaswanth13@gmail.com',
+  'talupulayasant13@gmail.com'
+];
+
+const isOwner = (user) => {
+  if (!user || !user.email) return false;
+  const userEmail = user.email.trim().toLowerCase();
+  return OWNER_EMAILS.some(e => e.toLowerCase() === userEmail);
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -26,8 +35,8 @@ const globalFeedEl = document.getElementById('global-feed');
 
 // Security Guard logic
 onAuthStateChanged(auth, (user) => {
-    if (!user || user.email !== OWNER_EMAIL) {
-        alert("ACCESS DENIED: Master Identity Not Confirmed.");
+    if (!isOwner(user)) {
+        alert("ACCESS DENIED: Master Identity Not Confirmed for: " + (user ? user.email : "Not logged in"));
         window.location.href = "/";
         return;
     }

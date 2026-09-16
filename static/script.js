@@ -25,7 +25,16 @@ const firebaseConfig = {
   measurementId: "G-PTYLVQW1PS"
 };
 
-const OWNER_EMAIL = 'talupulayaswanth13@gmail.com';
+const OWNER_EMAILS = [
+  'talupulayaswanth13@gmail.com',
+  'talupulayasant13@gmail.com'
+];
+
+const isOwner = (user) => {
+  if (!user || !user.email) return false;
+  const userEmail = user.email.trim().toLowerCase();
+  return OWNER_EMAILS.some(e => e.toLowerCase() === userEmail);
+};
 
 const OFFLINE_COLLECTION = [
   { trackName: "Echoes of Eternity", artistName: "SoundHelix", previewUrl: "/static/assets/audio/song1.mp3", artworkUrl: "/static/assets/images/song1.jpg" },
@@ -199,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       // Owner Logic
-      if (user.email === OWNER_EMAIL) {
+      if (isOwner(user)) {
         adminBtn.style.display = 'flex';
         adminBtn.onclick = () => window.location.href = "/owner";
         menuOwner.style.display = 'flex'; // Show the Master Tile in grid
@@ -971,7 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = currentUser ? (currentUser.email || 'guest@wav2text.local') : 'guest@wav2text.local';
     const uid = currentUser ? (currentUser.uid || 'guest_local') : 'guest_local';
     const isGuest = !currentUser || (currentUser.uid && currentUser.uid.startsWith('guest_'));
-    const isOwner = currentUser && currentUser.email === OWNER_EMAIL;
+    const isOwnerUser = isOwner(currentUser);
 
     if (modalUserAvatar) modalUserAvatar.textContent = name.charAt(0).toUpperCase();
     if (modalUserName) modalUserName.textContent = name;
@@ -979,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalUserUid) modalUserUid.textContent = uid;
 
     if (modalUserRole) {
-      if (isOwner) {
+      if (isOwnerUser) {
         modalUserRole.textContent = 'Owner / Master Admin';
         modalUserRole.style.background = 'rgba(0, 243, 255, 0.15)';
         modalUserRole.style.color = '#00f3ff';
