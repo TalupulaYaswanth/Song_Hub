@@ -16,13 +16,13 @@ let transcriber = null;
 // --- CONFIGURATION ---
 // ⚠️ PASTE YOUR FIREBASE CONFIG HERE FROM THE GUIDE
 const firebaseConfig = {
-  apiKey: "AIzaSyBPXv3PvIHrDrNAoN4HxrQy-LIrXo4Bayo",
-  authDomain: "mylovely2d.firebaseapp.com",
-  projectId: "mylovely2d",
-  storageBucket: "mylovely2d.firebasestorage.app",
-  messagingSenderId: "252661420811",
-  appId: "1:252661420811:web:329709218c12b468b5480e",
-  measurementId: "G-LJBCG7XM2Q"
+  apiKey: "AIzaSyARWdp12QPwV8wTEfq6zR6YE7OOCIJtz5Q",
+  authDomain: "song-a5841.firebaseapp.com",
+  projectId: "song-a5841",
+  storageBucket: "song-a5841.firebasestorage.app",
+  messagingSenderId: "148443523795",
+  appId: "1:148443523795:web:6810d8daaaddaa75964226",
+  measurementId: "G-PTYLVQW1PS"
 };
 
 const OWNER_EMAIL = 'talupulayaswanth13@gmail.com';
@@ -650,13 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
     activeArtistName = artistName || "";
     activeArtworkUrl = imageSource || "/static/assets/images/song1.jpg";
 
-    if (floatingMiniPlayer) {
-      floatingMiniPlayer.style.display = 'none';
-    }
-    isPlayerMinimized = false;
-
-    libraryScreen.style.display = 'none';
-    phoneApp.style.display = 'flex';
     currentFile = "cloud";
     transcriptionCache = [];
     fileNameDisplay.textContent = activeSongName;
@@ -665,6 +658,27 @@ document.addEventListener('DOMContentLoaded', () => {
     transcribeBtn.disabled = false;
     downloadTxtBtn.style.display = 'none';
     transcriptOutput.textContent = "Song retrieved from Cloud. Tap transcribe to analyze.";
+
+    // Auto-play when audio is ready so playback starts for ALL songs
+    wavesurfer.once('ready', () => {
+      wavesurfer.play().catch(e => console.log("Autoplay on ready:", e));
+      updateMiniPlayerUI();
+    });
+
+    if (isPlayerMinimized) {
+      phoneApp.style.display = 'none';
+      libraryScreen.style.display = 'flex';
+      if (floatingMiniPlayer) {
+        floatingMiniPlayer.style.display = 'flex';
+      }
+    } else {
+      if (floatingMiniPlayer) {
+        floatingMiniPlayer.style.display = 'none';
+      }
+      libraryScreen.style.display = 'none';
+      phoneApp.style.display = 'flex';
+    }
+
     updateMiniPlayerUI();
   };
 
@@ -849,14 +863,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (historyModal) historyModal.classList.remove('active');
     if (accountModal) accountModal.classList.remove('active');
 
-    // If currently in God Player view, switch back to library
+    // If currently in God Player view, keep song playing and minimize to bubble
     if (phoneApp && (phoneApp.style.display === 'flex' || phoneApp.style.display === 'block')) {
-      if (wavesurfer && wavesurfer.isPlaying()) {
+      if (activeSongName) {
         minimizePlayer();
       } else {
         phoneApp.style.display = 'none';
         libraryScreen.style.display = 'flex';
-        if (wavesurfer) wavesurfer.pause();
       }
     } else if (libraryScreen) {
       libraryScreen.style.display = 'flex';
@@ -1302,13 +1315,18 @@ document.addEventListener('DOMContentLoaded', () => {
     phoneApp.style.display = 'none';
     libraryScreen.style.display = 'flex';
 
+    // Ensure audio continues playing seamlessly in the background for all songs
+    if (wavesurfer && !wavesurfer.isPlaying()) {
+      wavesurfer.play().catch(e => console.log("Playback resume on minimize:", e));
+    }
+
     updateMiniPlayerUI();
     if (floatingMiniPlayer) {
       floatingMiniPlayer.style.display = 'flex';
       floatingMiniPlayer.classList.remove('exit');
       floatingMiniPlayer.classList.add('enter');
     }
-    console.log("🫧 God Player minimized into floating mini bubble on the right side.");
+    console.log("🫧 God Player minimized: audio will continue playing until user clicks (X).");
   };
 
   const expandPlayer = () => {
@@ -1367,12 +1385,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   backLibraryBtn.onclick = () => {
-    if (wavesurfer && wavesurfer.isPlaying()) {
+    if (activeSongName) {
       minimizePlayer();
     } else {
       phoneApp.style.display = 'none';
       libraryScreen.style.display = 'flex';
-      if (wavesurfer) wavesurfer.pause();
     }
   };
 
@@ -1390,6 +1407,12 @@ document.addEventListener('DOMContentLoaded', () => {
       playPauseBtn.disabled = transcribeBtn.disabled = false;
       downloadTxtBtn.style.display = 'none';
       transcriptOutput.textContent = "Local file ready. Tap transcribe to run AI (may take a moment to load model initially).";
+
+      wavesurfer.once('ready', () => {
+        wavesurfer.play().catch(e => console.log("Autoplay local file:", e));
+        updateMiniPlayerUI();
+      });
+
       updateMiniPlayerUI();
     }
   };
