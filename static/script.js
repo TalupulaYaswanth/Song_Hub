@@ -115,6 +115,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuOwner = document.getElementById('menu-owner');
   const menuAccount = document.getElementById('menu-account');
 
+  // Account & Security Modal Elements
+  const accountModal = document.getElementById('account-modal');
+  const closeAccountModalBtn = document.getElementById('close-account-modal-btn');
+  const modalCloseActionBtn = document.getElementById('modal-close-action-btn');
+  const tabBtnAccount = document.getElementById('tab-btn-account');
+  const tabBtnSecurity = document.getElementById('tab-btn-security');
+  const tabPaneAccount = document.getElementById('tab-pane-account');
+  const tabPaneSecurity = document.getElementById('tab-pane-security');
+  const modalLogoutBtn = document.getElementById('modal-logout-btn');
+
   
   // God Profile UI Elements
   const userProfileHeader = document.getElementById('user-profile-header');
@@ -200,9 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mainSavedPlaylistBtn.style.display = 'flex';
       mainSavedPlaylistBtn.onclick = () => fetchSavedLibrary();
       
-      homeLibraryBtn.onclick = () => {
-        fetchLibrary(languageSelect.value);
-      };
+      homeLibraryBtn.onclick = () => goHome();
 
       fetchLibrary(languageSelect.value);
       initWavesurfer();
@@ -766,8 +774,9 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUser = guestUser;
       loginScreen.style.display = 'none';
       libraryScreen.style.display = 'flex';
+      mainSavedPlaylistBtn.style.display = 'flex';
       updateUserUI(guestUser);
-      fetchLibrary(languageSelect.value);
+      goHome();
       initWavesurfer();
     };
   }
@@ -809,7 +818,100 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  logoutBtn.onclick = () => signOut(auth);
+  // Unified Logout handler (works for both Guest and Authenticated users)
+  const handleLogout = async () => {
+    if (wavesurfer) {
+      wavesurfer.pause();
+    }
+    if (profileDropdown) profileDropdown.classList.remove('active');
+    if (historyModal) historyModal.classList.remove('active');
+    if (accountModal) accountModal.classList.remove('active');
+    if (floatingMiniPlayer) floatingMiniPlayer.style.display = 'none';
+
+    currentUser = null;
+    libraryScreen.style.display = 'none';
+    phoneApp.style.display = 'none';
+    mainSavedPlaylistBtn.style.display = 'none';
+    loginScreen.style.display = 'flex';
+
+    try {
+      if (auth && auth.currentUser) {
+        await signOut(auth);
+      }
+    } catch (e) {
+      console.warn("Sign out handled:", e);
+    }
+  };
+
+  // Unified Home Button Handler
+  const goHome = () => {
+    if (profileDropdown) profileDropdown.classList.remove('active');
+    if (historyModal) historyModal.classList.remove('active');
+    if (accountModal) accountModal.classList.remove('active');
+
+    // If currently in God Player view, switch back to library
+    if (phoneApp && (phoneApp.style.display === 'flex' || phoneApp.style.display === 'block')) {
+      if (wavesurfer && wavesurfer.isPlaying()) {
+        minimizePlayer();
+      } else {
+        phoneApp.style.display = 'none';
+        libraryScreen.style.display = 'flex';
+        if (wavesurfer) wavesurfer.pause();
+      }
+    } else if (libraryScreen) {
+      libraryScreen.style.display = 'flex';
+    }
+
+    // Reset search input and search bar status
+    if (globalSearchInput) {
+      globalSearchInput.value = '';
+      globalSearchInput.placeholder = 'Search for songs, artists, or albums...';
+    }
+    if (searchClearBtn) {
+      searchClearBtn.classList.remove('active');
+      searchClearBtn.style.display = 'none';
+    }
+    if (searchBar) {
+      searchBar.classList.remove('saved-mode');
+    }
+    if (searchFilterBadge) {
+      searchFilterBadge.classList.remove('active');
+      searchFilterBadge.textContent = 'LIBRARY';
+    }
+
+    // Reset saved library mode
+    isViewingSavedLibrary = false;
+    cachedSavedSongs = [];
+
+    // Reset library title and connectivity status
+    if (libraryTitle) {
+      libraryTitle.textContent = "Global Top Hits";
+    }
+    if (connectivityBadge && navigator.onLine) {
+      connectivityBadge.textContent = "Online Cloud";
+      connectivityBadge.style.color = "#00ff41";
+      connectivityBadge.style.borderColor = "#00ff41";
+      connectivityBadge.style.background = "rgba(0, 255, 65, 0.1)";
+    }
+
+    // Fetch and display default library
+    const currentLang = languageSelect ? languageSelect.value : 'bollywood';
+    fetchLibrary(currentLang);
+
+    // Smooth scroll to top of library
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Tactile button animation feedback
+    if (homeLibraryBtn) {
+      homeLibraryBtn.classList.add('btn-clicked');
+      setTimeout(() => homeLibraryBtn.classList.remove('btn-clicked'), 300);
+    }
+  };
+
+  // Attach global navigation listeners (ALWAYS active)
+  if (homeLibraryBtn) homeLibraryBtn.onclick = () => goHome();
+  if (logoutBtn) logoutBtn.onclick = () => handleLogout();
+  if (mainSavedPlaylistBtn) mainSavedPlaylistBtn.onclick = () => fetchSavedLibrary();
   
   // Profile Dropdown Open Logic
   userProfileHeader.onclick = (e) => {
@@ -840,10 +942,86 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  menuLogout.onclick = () => signOut(auth);
-  menuSecurity.onclick = () => window.open('https://myaccount.google.com/security', '_blank');
+  // Account & Security Modal Handler
+  const openAccountModal = (tab = 'account') => {
+    if (profileDropdown) profileDropdown.classList.remove('active');
+    if (!accountModal) return;
+
+    const modalUserAvatar = document.getElementById('modal-user-avatar');
+    const modalUserName = document.getElementById('modal-user-name');
+    const modalUserEmail = document.getElementById('modal-user-email');
+    const modalUserRole = document.getElementById('modal-user-role');
+    const modalUserUid = document.getElementById('modal-user-uid');
+    const securityExternal = document.getElementById('modal-security-external');
+
+    const name = currentUser ? (currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Guest Explorer')) : 'Guest Explorer';
+    const email = currentUser ? (currentUser.email || 'guest@wav2text.local') : 'guest@wav2text.local';
+    const uid = currentUser ? (currentUser.uid || 'guest_local') : 'guest_local';
+    const isGuest = !currentUser || (currentUser.uid && currentUser.uid.startsWith('guest_'));
+    const isOwner = currentUser && currentUser.email === OWNER_EMAIL;
+
+    if (modalUserAvatar) modalUserAvatar.textContent = name.charAt(0).toUpperCase();
+    if (modalUserName) modalUserName.textContent = name;
+    if (modalUserEmail) modalUserEmail.textContent = email;
+    if (modalUserUid) modalUserUid.textContent = uid;
+
+    if (modalUserRole) {
+      if (isOwner) {
+        modalUserRole.textContent = 'Owner / Master Admin';
+        modalUserRole.style.background = 'rgba(0, 243, 255, 0.15)';
+        modalUserRole.style.color = '#00f3ff';
+      } else if (isGuest) {
+        modalUserRole.textContent = 'Guest Explorer';
+        modalUserRole.style.background = 'rgba(236, 72, 153, 0.15)';
+        modalUserRole.style.color = '#ec4899';
+      } else {
+        modalUserRole.textContent = 'Verified Member';
+        modalUserRole.style.background = 'rgba(0, 255, 65, 0.15)';
+        modalUserRole.style.color = '#00ff41';
+      }
+    }
+
+    if (securityExternal) {
+      securityExternal.style.display = isGuest ? 'none' : 'flex';
+    }
+
+    switchAccountTab(tab);
+    accountModal.classList.add('active');
+  };
+
+  const switchAccountTab = (tab) => {
+    if (tab === 'security') {
+      if (tabBtnSecurity) tabBtnSecurity.classList.add('active');
+      if (tabBtnAccount) tabBtnAccount.classList.remove('active');
+      if (tabPaneSecurity) tabPaneSecurity.style.display = 'block';
+      if (tabPaneAccount) tabPaneAccount.style.display = 'none';
+    } else {
+      if (tabBtnAccount) tabBtnAccount.classList.add('active');
+      if (tabBtnSecurity) tabBtnSecurity.classList.remove('active');
+      if (tabPaneAccount) tabPaneAccount.style.display = 'block';
+      if (tabPaneSecurity) tabPaneSecurity.style.display = 'none';
+    }
+  };
+
+  if (tabBtnAccount) tabBtnAccount.onclick = () => switchAccountTab('account');
+  if (tabBtnSecurity) tabBtnSecurity.onclick = () => switchAccountTab('security');
+  if (closeAccountModalBtn) closeAccountModalBtn.onclick = () => accountModal.classList.remove('active');
+  if (modalCloseActionBtn) modalCloseActionBtn.onclick = () => accountModal.classList.remove('active');
+  if (modalLogoutBtn) modalLogoutBtn.onclick = () => handleLogout();
+
+  // Close account modal when clicking overlay outside content
+  if (accountModal) {
+    accountModal.addEventListener('click', (e) => {
+      if (e.target === accountModal) {
+        accountModal.classList.remove('active');
+      }
+    });
+  }
+
+  menuLogout.onclick = () => handleLogout();
+  menuSecurity.onclick = () => openAccountModal('security');
   menuOwner.onclick = () => window.location.href = "/owner";
-  menuAccount.onclick = () => alert(`Current Identity: ${currentUser.displayName}\nEmail: ${currentUser.email}\nCloud UID: ${currentUser.uid}`);
+  menuAccount.onclick = () => openAccountModal('account');
 
   atmosphereSelect.onchange = (e) => {
     const theme = e.target.value;

@@ -1463,3 +1463,53 @@ body.theme-cyber .header-text { background: linear-gradient(to right, #00f3ff, #
   border: 1px solid rgba(245, 158, 11, 0.35);
   color: #fbbf24;
 }
+
+/* Home & Logout Navigation Buttons */
+.home-nav-btn {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.home-nav-btn:hover {
+  background: rgba(139, 92, 246, 0.25) !important;
+  border-color: var(--primary-glow) !important;
+  color: #fff !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.45) !important;
+}
+
+.home-nav-btn:active,
+.home-nav-btn.btn-clicked {
+  transform: scale(0.92) !important;
+  background: rgba(139, 92, 246, 0.4) !important;
+}
+
+.logout-nav-btn {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.logout-nav-btn:hover {
+  background: rgba(255, 71, 87, 0.18) !important;
+  color: #ff4757 !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 16px rgba(255, 71, 87, 0.4) !important;
+}
+
+.logout-nav-btn:active {
+  transform: scale(0.92) !important;
+}
+
+/* Account Modal Details */
+.account-modal-dialog {
+  animation: modalPop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.account-modal-tabs .tab-btn {
+  transition: all 0.2s ease;
+}
+
+.account-modal-tabs .tab-btn.active {
+  background: rgba(139, 92, 246, 0.35) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
