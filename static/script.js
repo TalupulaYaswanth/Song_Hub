@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let cachedSavedSongs = [];
   let searchExpanded = false;
   let currentSongsList = [...OFFLINE_COLLECTION];
-  let isShuffleActive = true;
+  let isShuffleActive = false;
   let activeArtworkUrl = "/static/assets/images/song1.jpg";
   let isPlayerMinimized = false;
 
@@ -261,6 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
     userProfileHeader.style.display = 'flex';
   };
 
+  let currentTrackPlayTime = 0;
+  let lastPlayTimestamp = 0;
+  let autoAdvanceTimeout = null;
+
   // Initialize wavesurfer safely
   const initWavesurfer = () => {
     if (!wavesurfer) {
@@ -275,22 +279,38 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       wavesurfer.on('play', () => { 
+        lastPlayTimestamp = Date.now();
         playPauseBtn.innerHTML = pauseIconTemplate; 
         updateMiniPlayerUI();
       });
       wavesurfer.on('pause', () => { 
+        if (lastPlayTimestamp > 0) {
+          currentTrackPlayTime += (Date.now() - lastPlayTimestamp) / 1000;
+          lastPlayTimestamp = 0;
+        }
         playPauseBtn.innerHTML = playIconTemplate; 
         updateMiniPlayerUI();
       });
       wavesurfer.on('finish', () => {
+        let totalPlayed = currentTrackPlayTime;
+        if (lastPlayTimestamp > 0) {
+          totalPlayed += (Date.now() - lastPlayTimestamp) / 1000;
+        }
+
+        // 🛡️ Strict Guard: Preview tracks are ~30s long.
+        // If total playback is under 20s, this is a spurious finish event during track load/reset -> IGNORE!
+        if (totalPlayed < 20) {
+          return;
+        }
+
         playPauseBtn.innerHTML = playIconTemplate;
         updateMiniPlayerUI();
-        if (isShuffleActive) {
-          console.log("🔀 Continuous Random Play: song finished, loading next random track...");
-          setTimeout(() => {
-            playRandomSong();
-          }, 800);
-        }
+
+        console.log(`🎵 Track finished full playback (${totalPlayed.toFixed(1)}s). Advancing to next track...`);
+        clearTimeout(autoAdvanceTimeout);
+        autoAdvanceTimeout = setTimeout(() => {
+          playNextTrack();
+        }, 800);
       });
 
       let lastActiveLineIndex = -1;
@@ -683,6 +703,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const selectSong = (audioUrl, trackName, imageSource, artistName) => {
     const playId = ++currentSongPlayId;
+
+    // Cancel any pending auto-advance from previous track
+    if (autoAdvanceTimeout) {
+      clearTimeout(autoAdvanceTimeout);
+      autoAdvanceTimeout = null;
+    }
+    currentTrackPlayTime = 0;
+    lastPlayTimestamp = 0;
 
     // Instantly stop any previous audio playback so track switching is immediate
     try {
@@ -1478,6 +1506,23 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   playPauseBtn.onclick = () => wavesurfer.playPause();
+
+  // ▶️ Continuous Flow: Next Track in Queue/Library
+  const playNextTrack = () => {
+    const list = (currentSongsList && currentSongsList.length > 0) ? currentSongsList : OFFLINE_COLLECTION;
+    if (!list || list.length === 0) return;
+
+    if (isShuffleActive) {
+      playRandomSong();
+      return;
+    }
+
+    const currIdx = list.findIndex(s => s.trackName === activeSongName);
+    const nextIdx = currIdx >= 0 ? (currIdx + 1) % list.length : 0;
+    const nextTrack = list[nextIdx];
+    console.log(`▶️ Playing Next Track: ${nextTrack.trackName}`);
+    selectSong(nextTrack.previewUrl, nextTrack.trackName, nextTrack.artworkUrl, nextTrack.artistName);
+  };
 
   // 🔀 Random Play / Shuffle Engine
   const playRandomSong = () => {
