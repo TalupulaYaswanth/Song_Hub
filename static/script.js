@@ -458,16 +458,16 @@ document.addEventListener('DOMContentLoaded', () => {
     loadingSpinner.style.display = 'flex';
     songGrid.style.display = 'none';
 
-    // Timeout safety net (4.5 seconds max)
+    // Timeout safety net (6.0 seconds max for 60 songs)
     const timeoutId = setTimeout(() => {
       if (currentFetchController && currentFetchController.signal === signal) {
         currentFetchController.abort();
       }
-    }, 4500);
+    }, 6000);
 
     try {
-      // Primary high-speed provider: Apple iTunes Search API (limit 30 for fast download and rendering)
-      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTerm)}&limit=30&entity=song`;
+      // Primary high-speed provider: Apple iTunes Search API (limit 60 for rich song view)
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTerm)}&limit=60&entity=song`;
       const itunesRes = await fetch(itunesUrl, { signal });
       clearTimeout(timeoutId);
 
