@@ -150,6 +150,10 @@ def block_user():
         return jsonify({"status": "success", "user": user.to_dict()})
     return jsonify({"error": "User not found"}), 404
 
+# In-memory caches for performance
+lyrics_cache = {}
+spotify_disabled_until = 0
+
 @app.route('/api/lyrics', methods=['GET'])
 def get_lyrics():
     artist = request.args.get('artist', '')
@@ -161,6 +165,11 @@ def get_lyrics():
     clean_title = re.sub(r'\(.*?\)|\[.*?\]', '', title)
     clean_title = re.split(r'\s*-\s*', clean_title)[0].strip()
     clean_artist = re.split(r'[,&]', artist)[0].strip() if artist else ''
+    cache_key = f"{clean_artist.lower()}---{clean_title.lower()}"
+
+    # Return cached lyrics instantly if available
+    if cache_key in lyrics_cache:
+        return jsonify(lyrics_cache[cache_key])
 
     # 1. Search Lrclib for exact time-synchronized lyrics (matching song tempo & timestamps)
     try:
@@ -170,28 +179,36 @@ def get_lyrics():
             f'https://lrclib.net/api/search?q={safe_q}',
             headers={'User-Agent': 'SongToTextApp/1.0'}
         )
-        response = urllib.request.urlopen(req, timeout=5)
+        response = urllib.request.urlopen(req, timeout=4)
         results = json.loads(response.read().decode('utf-8'))
 
         if isinstance(results, list) and len(results) > 0:
             # Check for syncedLyrics with exact millisecond timestamps
             for item in results:
                 if item.get('syncedLyrics') and len(item['syncedLyrics'].strip()) > 30:
-                    return jsonify({
+                    payload = {
                         "synced": True,
                         "syncedLyrics": item['syncedLyrics'],
                         "plainLyrics": item.get('plainLyrics', ''),
                         "duration": item.get('duration', 0)
-                    })
+                    }
+                    if len(lyrics_cache) > 500:
+                        lyrics_cache.clear()
+                    lyrics_cache[cache_key] = payload
+                    return jsonify(payload)
             
             # If no synced lyrics, return plain lyrics from first match
             for item in results:
                 if item.get('plainLyrics') and len(item['plainLyrics'].strip()) > 30:
-                    return jsonify({
+                    payload = {
                         "synced": False,
                         "lyrics": item['plainLyrics'],
                         "duration": item.get('duration', 0)
-                    })
+                    }
+                    if len(lyrics_cache) > 500:
+                        lyrics_cache.clear()
+                    lyrics_cache[cache_key] = payload
+                    return jsonify(payload)
     except Exception as e:
         print(f"Lrclib Search error: {e}")
 
@@ -204,10 +221,14 @@ def get_lyrics():
                 f'https://api.lyrics.ovh/v1/{safe_artist}/{safe_title}',
                 headers={'User-Agent': 'Mozilla/5.0'}
             )
-            response = urllib.request.urlopen(req, timeout=4)
+            response = urllib.request.urlopen(req, timeout=3)
             data = json.loads(response.read().decode('utf-8'))
             if data.get('lyrics'):
-                return jsonify({"synced": False, "lyrics": data.get('lyrics')})
+                payload = {"synced": False, "lyrics": data.get('lyrics')}
+                if len(lyrics_cache) > 500:
+                    lyrics_cache.clear()
+                lyrics_cache[cache_key] = payload
+                return jsonify(payload)
     except Exception as e:
         print(f"Lyrics.ovh fallback error: {e}")
 
@@ -220,7 +241,7 @@ def proxy_audio():
         return jsonify({"error": "Missing url"}), 400
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        response = urllib.request.urlopen(req, timeout=10)
+        response = urllib.request.urlopen(req, timeout=8)
         return response.read(), 200, {'Content-Type': 'audio/mpeg', 'Access-Control-Allow-Origin': '*'}
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -229,6 +250,9 @@ def proxy_audio():
 
 def get_spotify_token():
     """Get a Spotify access token using Client Credentials flow. Caches until expiry."""
+    global spotify_disabled_until
+    if time.time() < spotify_disabled_until:
+        return None
     if spotify_token_cache['token'] and time.time() < spotify_token_cache['expires_at']:
         return spotify_token_cache['token']
     
@@ -248,7 +272,7 @@ def get_spotify_token():
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
         )
-        response = urllib.request.urlopen(req, timeout=5)
+        response = urllib.request.urlopen(req, timeout=3)
         result = json.loads(response.read().decode('utf-8'))
         
         spotify_token_cache['token'] = result['access_token']
@@ -256,11 +280,16 @@ def get_spotify_token():
         
         return result['access_token']
     except Exception as e:
-        print(f"Spotify Token Error: {e}")
+        print(f"Spotify Token Error (cooling down 10 min): {e}")
+        spotify_disabled_until = time.time() + 600
         return None
 
 @app.route('/api/spotify/search', methods=['GET'])
 def spotify_search():
+    global spotify_disabled_until
+    if time.time() < spotify_disabled_until:
+        return jsonify({"tracks": []}), 200
+
     query = request.args.get('q', '')
     limit = request.args.get('limit', '30')
     
@@ -269,7 +298,7 @@ def spotify_search():
     
     token = get_spotify_token()
     if not token:
-        return jsonify({"error": "Spotify not configured", "tracks": []}), 200
+        return jsonify({"error": "Spotify unavailable", "tracks": []}), 200
     
     try:
         safe_query = urllib.parse.quote(query)
@@ -280,7 +309,7 @@ def spotify_search():
                 'User-Agent': 'Mozilla/5.0'
             }
         )
-        response = urllib.request.urlopen(req, timeout=5)
+        response = urllib.request.urlopen(req, timeout=3)
         data = json.loads(response.read().decode('utf-8'))
         
         tracks = []
@@ -299,7 +328,8 @@ def spotify_search():
         
         return jsonify({"tracks": tracks})
     except Exception as e:
-        print(f"Spotify Search Error: {e}")
+        print(f"Spotify Search Error (cooling down 10 min): {e}")
+        spotify_disabled_until = time.time() + 600
         return jsonify({"error": str(e), "tracks": []}), 200
 
 @app.route('/api/songs/save', methods=['POST'])

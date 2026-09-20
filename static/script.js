@@ -378,7 +378,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Library Fetching
+  // In-memory cache for ultra-fast instant renders on repeat searches / category switches
+  const songLibraryCache = new Map();
+  let currentFetchController = null;
+
+  // Library Fetching (High Performance)
   const fetchLibrary = async (term = 'bollywood') => {
     // Reset saved library mode
     isViewingSavedLibrary = false;
@@ -387,9 +391,9 @@ document.addEventListener('DOMContentLoaded', () => {
     searchFilterBadge.classList.remove('active');
     globalSearchInput.placeholder = 'Search for songs, artists, or albums...';
 
-    loadingSpinner.style.display = 'flex';
-    songGrid.style.display = 'none';
-    
+    const cleanTerm = (term || 'bollywood').trim();
+    const cacheKey = cleanTerm.toLowerCase();
+
     // Check Connectivity
     if (!navigator.onLine) {
       console.log("📴 Offline Mode: Loading local collection...");
@@ -398,6 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
       connectivityBadge.style.borderColor = "#ff3131";
       connectivityBadge.style.background = "rgba(255, 49, 49, 0.1)";
       libraryTitle.textContent = "Local Backup Hits";
+      loadingSpinner.style.display = 'none';
       renderSongs(OFFLINE_COLLECTION);
       return;
     }
@@ -413,71 +418,76 @@ document.addEventListener('DOMContentLoaded', () => {
         libraryTitle.textContent = "Global Top Hits";
     }
 
+    // ⚡ INSTANT CACHE HIT: Render immediately with 0ms delay!
+    if (songLibraryCache.has(cacheKey)) {
+      const cached = songLibraryCache.get(cacheKey);
+      if (cached && cached.length > 0) {
+        loadingSpinner.style.display = 'none';
+        renderSongs(cached);
+        return;
+      }
+    }
+
+    // Abort previous in-flight fetch request so rapid typing / filter switches don't clash
+    if (currentFetchController) {
+      currentFetchController.abort();
+    }
+    currentFetchController = new AbortController();
+    const signal = currentFetchController.signal;
+
+    loadingSpinner.style.display = 'flex';
+    songGrid.style.display = 'none';
+
+    // Timeout safety net (4.5 seconds max)
+    const timeoutId = setTimeout(() => {
+      if (currentFetchController && currentFetchController.signal === signal) {
+        currentFetchController.abort();
+      }
+    }, 4500);
+
     try {
-      // Fetch concurrently from three APIs (Spotify goes through our Flask backend)
-      const [itunesRes, jamendoRes, spotifyRes] = await Promise.allSettled([
-        fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&limit=50&entity=song`),
-        fetch(`https://api.jamendo.com/v3.0/tracks/?client_id=b5b9fac1&format=json&limit=50&search=${encodeURIComponent(term)}`),
-        fetch(`/api/spotify/search?q=${encodeURIComponent(term)}&limit=30`)
-      ]);
-      
+      // Primary high-speed provider: Apple iTunes Search API (limit 30 for fast download and rendering)
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTerm)}&limit=30&entity=song`;
+      const itunesRes = await fetch(itunesUrl, { signal });
+      clearTimeout(timeoutId);
+
       let formattedSongs = [];
 
-      // Process iTunes Data
-      if (itunesRes.status === 'fulfilled') {
-        try {
-          const data = await itunesRes.value.json();
-          const itunesSongs = data.results.map(track => ({
+      if (itunesRes.ok) {
+        const data = await itunesRes.json();
+        if (data.results && data.results.length > 0) {
+          formattedSongs = data.results.map(track => ({
             trackName: track.trackName || 'Unknown Title',
             artistName: track.artistName || 'Unknown Artist',
             previewUrl: track.previewUrl,
             artworkUrl: track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '300x300bb') : '',
             provider: 'Apple'
-          })).filter(s => s.previewUrl); // Must have audio
-          formattedSongs = [...formattedSongs, ...itunesSongs];
-        } catch(e) { console.warn("iTunes Parse Error:", e); }
+          })).filter(s => s.previewUrl);
+        }
       }
 
-      // Process Jamendo (Indie Cloud) Data
-      if (jamendoRes.status === 'fulfilled') {
-        try {
-          const data = await jamendoRes.value.json();
-          if (data.results) {
-            const jamendoSongs = data.results.map(track => ({
-              trackName: track.name || 'Unknown Title',
-              artistName: track.artist_name || 'Unknown Artist',
-              previewUrl: track.audio,
-              artworkUrl: track.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80',
-              provider: 'Jamendo'
-            })).filter(s => s.previewUrl);
-            formattedSongs = [...formattedSongs, ...jamendoSongs];
-          }
-        } catch(e) { console.warn("Jamendo Parse Error:", e); }
+      if (formattedSongs.length === 0) {
+        throw new Error("No playable tracks returned from cloud provider");
       }
 
-      // Process Spotify Data (via our Flask backend proxy)
-      if (spotifyRes.status === 'fulfilled') {
-        try {
-          const data = await spotifyRes.value.json();
-          if (data.tracks && data.tracks.length > 0) {
-            formattedSongs = [...formattedSongs, ...data.tracks];
-            console.log(`🎵 Spotify returned ${data.tracks.length} tracks`);
-          }
-        } catch(e) { console.warn("Spotify Parse Error:", e); }
+      // Cache up to 100 queries in memory
+      if (songLibraryCache.size > 100) {
+        const oldestKey = songLibraryCache.keys().next().value;
+        songLibraryCache.delete(oldestKey);
       }
+      songLibraryCache.set(cacheKey, formattedSongs);
 
-      if (formattedSongs.length === 0) throw new Error("All Cloud APIs failed to return music");
-
-      // Prioritize Jamendo (full songs) first, then Spotify/iTunes (30s previews)
-      const fullSongs = formattedSongs.filter(s => s.provider === 'Jamendo').sort(() => 0.5 - Math.random());
-      const previewSongs = formattedSongs.filter(s => s.provider !== 'Jamendo').sort(() => 0.5 - Math.random());
-      formattedSongs = [...fullSongs, ...previewSongs];
-      
       renderSongs(formattedSongs);
     } catch (e) {
-      console.error("Cloud fetch completely failed, falling back to local:", e);
+      clearTimeout(timeoutId);
+      // If aborted because user changed search query, do not overwrite with fallback
+      if (e.name === 'AbortError') {
+        return;
+      }
+      console.warn("Cloud fetch warning (using offline collection fallback):", e);
       renderSongs(OFFLINE_COLLECTION);
-    }  };
+    }
+  };
 
   const renderSongs = (songs) => {
     currentSongsList = songs && songs.length > 0 ? songs : OFFLINE_COLLECTION;
@@ -653,7 +663,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Dynamic, deterministic waveform peak generator (avoids multi-second full file download & decode)
+  const generateSongPeaks = (trackName = '', numPoints = 100) => {
+    let hash = 0;
+    for (let i = 0; i < trackName.length; i++) {
+      hash = (hash << 5) - hash + trackName.charCodeAt(i);
+      hash |= 0;
+    }
+    const peaks = new Float32Array(numPoints);
+    for (let i = 0; i < numPoints; i++) {
+      const seed = Math.abs(Math.sin((i + 1) * 0.25 + (hash % 100) * 0.05));
+      const variation = 0.3 * Math.abs(Math.cos(i * 0.5 + (hash % 50)));
+      peaks[i] = Math.min(1.0, Math.max(0.18, (seed * 0.7 + variation)));
+    }
+    return [peaks];
+  };
+
+  let currentSongPlayId = 0;
+
   const selectSong = (audioUrl, trackName, imageSource, artistName) => {
+    const playId = ++currentSongPlayId;
+
+    // Instantly stop any previous audio playback so track switching is immediate
+    try {
+      if (wavesurfer) {
+        wavesurfer.pause();
+        wavesurfer.setTime(0);
+      }
+    } catch (err) {
+      console.warn("Could not pause previous track:", err);
+    }
+
     activeAudioUrl = audioUrl;
     activeSongName = trackName;
     activeArtistName = artistName || "";
@@ -662,15 +702,26 @@ document.addEventListener('DOMContentLoaded', () => {
     currentFile = "cloud";
     transcriptionCache = [];
     fileNameDisplay.textContent = activeSongName;
-    wavesurfer.load(audioUrl);
+    downloadTxtBtn.style.display = 'none';
+
+    // Enable buttons immediately
     playPauseBtn.disabled = false;
     transcribeBtn.disabled = false;
-    downloadTxtBtn.style.display = 'none';
     transcriptOutput.textContent = "Song retrieved from Cloud. Tap transcribe to analyze.";
 
-    // Auto-play when audio is ready so playback starts for ALL songs
+    // Generate instantaneous wave peaks for this track: WaveSurfer renders immediately
+    // and directly streams the audio through HTML5 audio without waiting for 2-5MB file download
+    const peaks = generateSongPeaks(trackName, 100);
+    wavesurfer.load(audioUrl, peaks, 30);
+
+    // Auto-play immediately when ready (fires within milliseconds with peaks provided)
     wavesurfer.once('ready', () => {
-      wavesurfer.play().catch(e => console.log("Autoplay on ready:", e));
+      // Discard if user already switched to another song
+      if (playId !== currentSongPlayId) return;
+      wavesurfer.play().catch(e => {
+        console.log("Autoplay on ready:", e);
+        playPauseBtn.innerHTML = playIconTemplate;
+      });
       updateMiniPlayerUI();
     });
 
@@ -1229,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (query.length === 0) {
         fetchLibrary(languageSelect.value);
       }
-    }, 500);
+    }, 250);
   };
 
   searchClearBtn.onclick = () => {
@@ -1444,10 +1495,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log(`🔀 Playing in Random: ${candidate.trackName}`);
     selectSong(candidate.previewUrl, candidate.trackName, candidate.artworkUrl, candidate.artistName);
-    
-    wavesurfer.once('ready', () => {
-      wavesurfer.play();
-    });
   };
 
   const updateShuffleUI = () => {
